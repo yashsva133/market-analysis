@@ -1,0 +1,185 @@
+version: "1.0"
+event_types:
+  CORPORATE_ANNOUNCEMENT:
+    description: "General corporate announcements and disclosures"
+    default_importance: "LOW"
+  ORDER_WIN:
+    description: "New contract awards, purchase orders, letter of awards"
+    default_importance: "HIGH"
+  ORDER_CANCELLATION:
+    description: "Cancellation or termination of existing contracts or orders"
+    default_importance: "CRITICAL"
+  CONTRACT:
+    description: "Formal commercial contracts signed"
+    default_importance: "MEDIUM"
+  MOU:
+    description: "Non-binding or preliminary memorandum of understanding"
+    default_importance: "MEDIUM"
+  LOI:
+    description: "Letter of intent received or issued"
+    default_importance: "MEDIUM"
+  CAPEX:
+    description: "Capital expenditure announcements and allocations"
+    default_importance: "HIGH"
+  PLANT:
+    description: "New manufacturing unit, plant opening or closure"
+    default_importance: "HIGH"
+  CAPACITY_EXPANSION:
+    description: "Brownfield or greenfield capacity expansion"
+    default_importance: "HIGH"
+  PRODUCT_LAUNCH:
+    description: "Commercial launch of new product or service"
+    default_importance: "MEDIUM"
+  TECHNOLOGY_MILESTONE:
+    description: "Tech breakthrough, software/hardware platform release"
+    default_importance: "MEDIUM"
+  RND_MILESTONE:
+    description: "Research & Development milestone or patent grant"
+    default_importance: "MEDIUM"
+  GOVERNMENT_APPROVAL:
+    description: "Central or state government approval or clearance"
+    default_importance: "HIGH"
+  REGULATORY_APPROVAL:
+    description: "SEBI, RBI, CCI, FDA, DGFT or other regulator clearance"
+    default_importance: "HIGH"
+  LICENSE:
+    description: "New operational, manufacturing, or commercial license"
+    default_importance: "HIGH"
+  POLICY_CHANGE:
+    description: "Macro or sector policy shift impacting business economics"
+    default_importance: "HIGH"
+  MNA:
+    description: "Merger, acquisition, takeover, or asset purchase"
+    default_importance: "CRITICAL"
+  JV:
+    description: "Joint venture formation or restructuring"
+    default_importance: "HIGH"
+  PARTNERSHIP:
+    description: "Strategic tie-up or alliance"
+    default_importance: "MEDIUM"
+  FUND_RAISE:
+    description: "QIP, preferential issue, rights issue, equity raise"
+    default_importance: "HIGH"
+  DEBT:
+    description: "NCD issuance, commercial paper, loan sanction or repayment"
+    default_importance: "MEDIUM"
+  CREDIT_RATING:
+    description: "Upgrade, downgrade, or reaffirmation of credit rating"
+    default_importance: "HIGH"
+  RESULTS:
+    description: "Quarterly or annual financial results"
+    default_importance: "HIGH"
+  EARNINGS_CALL:
+    description: "Earnings conference call transcript or audio recording"
+    default_importance: "MEDIUM"
+  GUIDANCE:
+    description: "Management revenue, margin, or growth guidance"
+    default_importance: "HIGH"
+  DIVIDEND:
+    description: "Interim, final, or special dividend recommendation"
+    default_importance: "MEDIUM"
+  BUYBACK:
+    description: "Share repurchase announcement or tender offer"
+    default_importance: "HIGH"
+  BONUS:
+    description: "Bonus share issue proposal or approval"
+    default_importance: "MEDIUM"
+  SPLIT:
+    description: "Sub-division / stock split of equity shares"
+    default_importance: "MEDIUM"
+  RIGHTS_ISSUE:
+    description: "Rights issue terms and entitlement"
+    default_importance: "HIGH"
+  PREFERENTIAL_ISSUE:
+    description: "Preferential allotment of equity or convertible warrants"
+    default_importance: "HIGH"
+  SHAREHOLDING_CHANGE:
+    description: "Substantial acquisition or disposal under SAST regulations"
+    default_importance: "HIGH"
+  PROMOTER_ACTIVITY:
+    description: "Promoter buying, selling, or inter-se transfer"
+    default_importance: "HIGH"
+  PLEDGE:
+    description: "Creation, revocation, or invocation of promoter share pledge"
+    default_importance: "CRITICAL"
+  MANAGEMENT_CHANGE:
+    description: "Appointment or resignation of MD, CEO, CFO, key executive"
+    default_importance: "HIGH"
+  AUDITOR_CHANGE:
+    description: "Statutory auditor resignation, removal, or qualification"
+    default_importance: "CRITICAL"
+  RELATED_PARTY:
+    description: "Significant related party transaction disclosure"
+    default_importance: "HIGH"
+  LITIGATION:
+    description: "Material legal dispute, court notice, or arbitration"
+    default_importance: "HIGH"
+  ARBITRATION:
+    description: "Arbitration proceeding, award, or dispute settlement"
+    default_importance: "HIGH"
+  INSOLVENCY:
+    description: "NCLT/IBC filing, admission, or debt resolution"
+    default_importance: "CRITICAL"
+  RESTRUCTURING:
+    description: "Scheme of arrangement, demerger, or capital reduction"
+    default_importance: "CRITICAL"
+  GOVERNANCE:
+    description: "Corporate governance report, board committee restructuring"
+    default_importance: "MEDIUM"
+  AGM:
+    description: "Annual General Meeting / EGM notice and proceedings"
+    default_importance: "LOW"
+  BOARD_MEETING:
+    description: "Board meeting intimation or outcome"
+    default_importance: "MEDIUM"
+  ANNUAL_REPORT:
+    description: "Annual report publication"
+    default_importance: "MEDIUM"
+  INVESTOR_PRESENTATION:
+    description: "Corporate or investor presentation"
+    default_importance: "MEDIUM"
+  BRSR:
+    description: "Business Responsibility and Sustainability Reporting"
+    default_importance: "LOW"
+  CYBER_EVENT:
+    description: "Cyber attack, ransomware, system compromise"
+    default_importance: "CRITICAL"
+  DATA_BREACH:
+    description: "Customer or proprietary data breach disclosure"
+    default_importance: "CRITICAL"
+  PRODUCTION_UPDATE:
+    description: "Monthly or periodic production / operational volume metrics"
+    default_importance: "MEDIUM"
+  SALES_UPDATE:
+    description: "Monthly auto sales, cement dispatch, or delivery metrics"
+    default_importance: "MEDIUM"
+  EXPORT_IMPORT:
+    description: "Major export order, customs duty or anti-dumping duty change"
+    default_importance: "MEDIUM"
+  TAX_EVENT:
+    description: "Income tax, GST demand, search, or appellate relief"
+    default_importance: "HIGH"
+  SUBSIDIARY_EVENT:
+    description: "Material development involving step-down subsidiary"
+    default_importance: "MEDIUM"
+  COMPETITOR_EVENT:
+    description: "Industry peer announcement directly shifting competitive dynamics"
+    default_importance: "MEDIUM"
+  SECTOR_EVENT:
+    description: "Industry-wide policy, tariff, or raw material supply disruption"
+    default_importance: "HIGH"
+  MACRO_EVENT:
+    description: "RBI repo rate, inflation print, GDP, Union Budget policy"
+    default_importance: "HIGH"
+  IPO:
+    description: "Initial Public Offering, SME IPO listing or prospectus"
+    default_importance: "HIGH"
+  DELISTING:
+    description: "Voluntary or compulsory delisting from exchange"
+    default_importance: "CRITICAL"
+  SUSPENSION:
+    description: "Exchange trading suspension or surveillance action (ASM/GSM)"
+    default_importance: "CRITICAL"
+  OTHER:
+    description: "Miscellaneous material event"
+    default_importance: "LOW"

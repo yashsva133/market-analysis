@@ -1,0 +1,49 @@
+version: "1.0"
+importance_classes:
+  CRITICAL:
+    delivery_channel: "telegram_immediate"
+    description: "Requires immediate investor review (within 1 minute)"
+  HIGH:
+    delivery_channel: "telegram_batched"
+    description: "Important event flagged within 5 minutes"
+  MEDIUM:
+    delivery_channel: "daily_digest"
+    description: "Noteworthy event included in end-of-day digest"
+  LOW:
+    delivery_channel: "archive_only"
+    description: "Stored in database and searchable in terminal"
+  INFORMATIONAL:
+    delivery_channel: "archive_only"
+    description: "Routine filing with minimal immediate price impact"
+
+# Deterministic threshold multipliers & rules
+rules:
+  critical_event_types:
+    - "INSOLVENCY"
+    - "AUDITOR_CHANGE"
+    - "PLEDGE"
+    - "ORDER_CANCELLATION"
+    - "MNA"
+    - "RESTRUCTURING"
+    - "CYBER_EVENT"
+    - "DATA_BREACH"
+    - "DELISTING"
+    - "SUSPENSION"
+
+  order_win:
+    critical_revenue_pct: 0.50   # Order value >= 50% of annual revenue -> CRITICAL
+    high_revenue_pct: 0.15       # Order value >= 15% of annual revenue -> HIGH
+    medium_revenue_pct: 0.05     # Order value >= 5% of annual revenue -> MEDIUM
+    absolute_critical_inr: 50000000000  # >= ₹5,000 Cr absolute -> CRITICAL
+    absolute_high_inr: 5000000000       # >= ₹500 Cr absolute -> HIGH
+
+  capex:
+    critical_net_worth_pct: 0.40 # Capex >= 40% of net worth -> CRITICAL
+    high_net_worth_pct: 0.15     # Capex >= 15% of net worth -> HIGH
+
+  promoter_stake_change:
+    critical_change_pct: 0.05    # >= 5% stake change -> CRITICAL
+    high_change_pct: 0.02        # >= 2% stake change -> HIGH
+
+  litigation:
+    critical_net_profit_pct: 0.50 # Dispute claim >= 50% of annual PAT -> CRITICAL

@@ -1,0 +1,92 @@
+version: "1.0"
+sources:
+  - id: "nse-announcements"
+    name: "NSE Corporate Filings"
+    publisher: "National Stock Exchange of India"
+    source_type: "exchange_filing"
+    priority: 1
+    base_url: "https://www.nseindia.com/api/corporate-announcements"
+    active: true
+    rate_limit_per_minute: 15
+    timeout_seconds: 15
+    retry_max: 3
+    is_primary: true
+    robots_or_policy_note: "Official public corporate filings portal"
+
+  - id: "bse-announcements"
+    name: "BSE Corporate Announcements"
+    publisher: "BSE India"
+    source_type: "exchange_filing"
+    priority: 1
+    base_url: "https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryGetData/w"
+    active: true
+    rate_limit_per_minute: 20
+    timeout_seconds: 15
+    retry_max: 3
+    is_primary: true
+    robots_or_policy_note: "Official public corporate filings portal"
+
+  - id: "sebi-circulars"
+    name: "SEBI Legal & Regulatory Disclosures"
+    publisher: "Securities and Exchange Board of India"
+    source_type: "regulator"
+    priority: 2
+    base_url: "https://www.sebi.gov.in/curation/corporate_filings.html"
+    active: true
+    rate_limit_per_minute: 10
+    timeout_seconds: 20
+    retry_max: 3
+    is_primary: true
+    robots_or_policy_note: "Public regulatory disclosure repository"
+
+  - id: "pib-press-releases"
+    name: "Press Information Bureau"
+    publisher: "Government of India"
+    source_type: "government"
+    priority: 2
+    base_url: "https://pib.gov.in/RssMain.aspx"
+    active: true
+    rate_limit_per_minute: 30
+    timeout_seconds: 15
+    retry_max: 2
+    is_primary: true
+    robots_or_policy_note: "Public government press releases"
+
+  - id: "rbi-notifications"
+    name: "Reserve Bank of India Press Releases"
+    publisher: "Reserve Bank of India"
+    source_type: "regulator"
+    priority: 2
+    base_url: "https://rbi.org.in/scripts/BS_PressReleaseDisplay.aspx"
+    active: true
+    rate_limit_per_minute: 15
+    timeout_seconds: 15
+    retry_max: 2
+    is_primary: true
+    robots_or_policy_note: "Central banking press releases"
+
+  - id: "google-news-rss"
+    name: "Indian Equities News Feed"
+    publisher: "Public RSS aggregator"
+    source_type: "rss_feed"
+    priority: 3
+    base_url: "https://news.google.com/rss/search"
+    active: true
+    rate_limit_per_minute: 20
+    timeout_seconds: 15
+    retry_max: 2
+    is_primary: false
+    robots_or_policy_note: "Standard public RSS syndication"
+
+  - id: "yahoo-market-data"
+    name: "Market Prices & OHLCV Fallback"
+    publisher: "Yahoo Finance API"
+    source_type: "market_price_fallback"
+    priority: 4
+    base_url: "https://query1.finance.yahoo.com"
+    active: true
+    rate_limit_per_minute: 60
+    timeout_seconds: 10
+    retry_max: 2
+    is_primary: false
+    robots_or_policy_note: "Personal-use secondary market price fallback"

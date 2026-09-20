@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: india-market-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: india_market_terminal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: india-market-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/india_market_terminal
+      - DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@postgres:5432/india_market_terminal
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - document_data:/app/data/documents
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/Dockerfile
+    container_name: india-market-worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/india_market_terminal
+      - DATABASE_URL_SYNC=postgresql+psycopg2://postgres:postgres@postgres:5432/india_market_terminal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - document_data:/app/data/documents
+
+  app-web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: india-market-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - app-api
+
+volumes:
+  postgres_data:
+  document_data:

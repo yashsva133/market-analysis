@@ -1,0 +1,48 @@
+version: "1.0"
+ai:
+  # Framework configuration - no local models, pluggable API provider
+  active_provider: "rule_fallback" # Can be updated to "gemini", "openai_compatible", etc.
+  fallback_provider: "rule_fallback"
+  cache_enabled: true
+  cache_ttl_hours: 168 # 7 days
+  max_retries: 2
+  timeout_seconds: 30
+
+  providers:
+    gemini:
+      model: "gemini-2.5-flash"
+      api_key_env: "GEMINI_API_KEY"
+      temperature: 0.1
+      max_output_tokens: 2048
+
+    openai_compatible:
+      base_url_env: "OPENAI_BASE_URL"
+      api_key_env: "OPENAI_API_KEY"
+      model: "gpt-4o-mini"
+      temperature: 0.1
+
+    rule_fallback:
+      description: "100% deterministic rule-based extractor using regular expressions, dictionary lookups, and financial ratios"
+      requires_api_key: false
+
+  agents:
+    agent_a_collector:
+      use_llm: false
+    agent_b_document_extractor:
+      use_llm: false
+    agent_c_entity_resolver:
+      use_llm: false # deterministic lookup first, AI only for unresolved
+    agent_d_event_classifier:
+      use_llm: true
+    agent_e_event_verifier:
+      use_llm: true
+    agent_f_materiality_analyst:
+      use_llm: true
+    agent_g_market_reaction_analyst:
+      use_llm: false
+    agent_h_research_agent:
+      use_llm: true
+    agent_i_theme_discovery:
+      use_llm: true
+    agent_j_alert_formatter:
+      use_llm: false

@@ -1,0 +1,36 @@
+version: "1.0"
+timezone: "Asia/Kolkata"
+
+schedules:
+  market_hours:
+    start: "09:00"
+    end: "16:00"
+    trading_days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+  tasks:
+    exchange_announcements_polling:
+      interval_seconds: 90
+      market_hours_only: false
+      description: "Check for new NSE & BSE corporate disclosures and Reg 30 filings"
+
+    government_and_pib_polling:
+      interval_seconds: 600
+      market_hours_only: false
+      description: "Poll PIB, SEBI, and RBI press releases"
+
+    rss_news_polling:
+      interval_seconds: 900
+      market_hours_only: false
+      description: "Secondary financial news RSS updates"
+
+    daily_universe_refresh:
+      cron: "30 08 * * 1-5"
+      description: "Fetch NSE & BSE security masters, deduplicate by ISIN, detect symbol changes"
+
+    daily_market_reaction_and_digest:
+      cron: "00 17 * * 1-5"
+      description: "Calculate 1D/volume reactions and dispatch end-of-day Telegram digest"
+
+    weekly_knowledge_graph_refresh:
+      cron: "00 02 * * 0"
+      description: "Audit subsidiaries, related entities, peer clusters, and clean dead links"
