@@ -818,7 +818,17 @@ export default function TerminalHome() {
 
       if (res && res.ok) {
         const raw = await res.json();
-        const price = raw.inputs?.current_price || (sym === "RELIANCE" ? 3021.23 : sym === "LT" ? 3712.45 : sym === "TCS" ? 4250.0 : 1640.0);
+
+        // The backend reports DATA_UNAVAILABLE when it cannot obtain real price
+        // history. Do NOT fabricate a price or forecast on the client.
+        if (raw?.status === "DATA_UNAVAILABLE") {
+          throw new Error(raw.message || "No real price history available for this symbol.");
+        }
+
+        const price = raw.inputs?.current_price;
+        if (typeof price !== "number" || price <= 0) {
+          throw new Error("Backend returned no valid current price; refusing to fabricate one.");
+        }
         const wholeShares = raw.execution_position?.executable_whole_shares ?? Math.floor(cap / price);
         const isInsufficient = raw.execution_position?.is_insufficient_capital ?? (wholeShares === 0);
         const fractionalShares = typeof raw.execution_position?.theoretical_fractional_exposure === "object"
@@ -831,22 +841,17 @@ export default function TerminalHome() {
           const normKey = sKey.toUpperCase();
           scMap[normKey] = {
             scenario_name: sVal.name || sVal.scenario_name || normKey.replace("_", " "),
-            price_range: sVal.price_range || `₹${(sVal.price_low || price * 0.9).toFixed(2)} – ₹${(sVal.price_high || price * 1.1).toFixed(2)}`,
-            implied_return_pct: sVal.implied_return_pct || `${sVal.return_low_pct !== undefined ? (sVal.return_low_pct > 0 ? "+" : "") + sVal.return_low_pct.toFixed(1) + "%" : ""} to ${sVal.return_high_pct !== undefined ? (sVal.return_high_pct > 0 ? "+" : "") + sVal.return_high_pct.toFixed(1) + "%" : ""}`,
+            price_range: sVal.price_range ?? null,
+            implied_return_pct: sVal.implied_return_pct ?? null,
             probability_mass_pct: typeof sVal.probability_mass_pct === "number" ? `${sVal.probability_mass_pct}%` : sVal.probability_mass_pct,
-            scenario_portfolio_value: sVal.scenario_portfolio_value ?? (wholeShares > 0 ? Number((wholeShares * (sVal.price_median || sVal.price_low || price)).toFixed(2)) : cap),
-            scenario_pnl: sVal.scenario_pnl ?? (wholeShares > 0 ? Number(((wholeShares * (sVal.price_median || sVal.price_low || price)) - (wholeShares * price)).toFixed(2)) : 0),
-            assumptions: sVal.assumptions || ["Operating factors intact"],
-            risks: sVal.risks || sVal.risk_factors || ["Downside macro risk"],
+            scenario_portfolio_value: sVal.scenario_portfolio_value ?? null,
+            scenario_pnl: sVal.scenario_pnl ?? null,
+            assumptions: sVal.assumptions || [],
+            risks: sVal.risks || sVal.risk_factors || [],
           };
         }
 
-        const stressMap = {
-          market_minus_5pct: "-4.2%",
-          market_minus_10pct: "-8.8%",
-          market_minus_20pct: "-17.4%",
-          high_vol_regime: "-6.1%",
-        };
+        const stressMap: Record<string, string> = {};
         if (Array.isArray(raw.stress_tests?.stress_scenarios)) {
           for (const st of raw.stress_tests.stress_scenarios) {
             const shock = st.asset_shock_pct ?? st.portfolio_loss_pct ?? 0;
@@ -860,10 +865,10 @@ export default function TerminalHome() {
 
         const compStats = raw.comparable_events?.statistics || {};
         const compObj = {
-          event_type: raw.comparable_events?.query_event_type || raw.comparable_events?.event_type || "ORDER_WIN",
-          historical_matches: raw.comparable_events?.sample_size ?? raw.comparable_events?.historical_matches ?? 48,
-          median_reaction_pct: compStats.median_return_t_plus_5_pct !== undefined ? `${compStats.median_return_t_plus_5_pct > 0 ? "+" : ""}${compStats.median_return_t_plus_5_pct}%` : raw.comparable_events?.median_reaction_pct || "+4.2%",
-          reaction_range: compStats.min_return_pct !== undefined ? `${compStats.min_return_pct}% to ${compStats.max_return_pct}%` : raw.comparable_events?.reaction_range || "-1.8% to +11.4%",
+          event_type: raw.comparable_events?.query_event_type || raw.comparable_events?.event_type || null,
+          historical_matches: raw.comparable_events?.sample_size ?? raw.comparable_events?.historical_matches ?? null,
+          median_reaction_pct: compStats.median_return_t_plus_5_pct !== undefined ? `${compStats.median_return_t_plus_5_pct > 0 ? "+" : ""}${compStats.median_return_t_plus_5_pct}%` : (raw.comparable_events?.median_reaction_pct ?? null),
+          reaction_range: compStats.min_return_pct !== undefined ? `${compStats.min_return_pct}% to ${compStats.max_return_pct}%` : (raw.comparable_events?.reaction_range ?? null),
         };
 
         const evPanel = (raw.evidence_panel || []).map((e: any) => ({
@@ -884,40 +889,40 @@ export default function TerminalHome() {
               ? `INSUFFICIENT CAPITAL FOR ONE SHARE (Share price ₹${price.toFixed(2)} exceeds available capital ₹${cap.toFixed(2)})`
               : null,
             current_price: price,
-            cash_remainder: raw.execution_position?.cash_remaining ?? raw.execution_position?.cash_remainder ?? Number((cap - wholeShares * price).toFixed(2)),
-            entry_notional: raw.execution_position?.entry_notional ?? Number((wholeShares * price).toFixed(2)),
-            estimated_costs: raw.execution_position?.estimated_transaction_costs?.total_costs ?? raw.execution_position?.estimated_costs ?? 0,
+            cash_remainder: raw.execution_position?.cash_remaining ?? raw.execution_position?.cash_remainder ?? null,
+            entry_notional: raw.execution_position?.entry_notional ?? null,
+            estimated_costs: raw.execution_position?.estimated_transaction_costs?.total_costs ?? raw.execution_position?.estimated_costs ?? null,
             theoretical_fractional_exposure: fractionalShares,
             is_fractional_executable: false,
           },
           forecast_distribution: {
-            q10: raw.forecast_distribution?.q10 ?? Number((price * 0.91).toFixed(2)),
-            q25: raw.forecast_distribution?.q25 ?? Number((price * 0.96).toFixed(2)),
-            q50: raw.forecast_distribution?.q50 ?? Number((price * 1.03).toFixed(2)),
-            q75: raw.forecast_distribution?.q75 ?? Number((price * 1.11).toFixed(2)),
-            q90: raw.forecast_distribution?.q90 ?? Number((price * 1.22).toFixed(2)),
-            expected_price: raw.forecast_distribution?.expected_price ?? Number((price * 1.04).toFixed(2)),
+            q10: raw.forecast_distribution?.q10 ?? null,
+            q25: raw.forecast_distribution?.q25 ?? null,
+            q50: raw.forecast_distribution?.q50 ?? null,
+            q75: raw.forecast_distribution?.q75 ?? null,
+            q90: raw.forecast_distribution?.q90 ?? null,
+            expected_price: raw.forecast_distribution?.expected_price ?? null,
           },
           target_probabilities: {
-            raw_p_target_touched: raw.target_probabilities?.raw_p_target_touched ?? 0.6,
-            calibrated_p_target_touched: raw.target_probabilities?.calibrated_p_target_touched ?? raw.target_probabilities?.raw_p_target_touched ?? (tgt <= price ? 0.99 : 0.584),
-            raw_p_finish_above: raw.target_probabilities?.raw_p_finish_above ?? 0.44,
-            calibrated_p_finish_above: raw.target_probabilities?.calibrated_p_finish_above ?? raw.target_probabilities?.raw_p_finish_above ?? (tgt <= price ? 0.98 : 0.418),
-            calibrated_p_stop_touched: raw.target_probabilities?.calibrated_p_stop_touched ?? 0.245,
+            raw_p_target_touched: raw.target_probabilities?.raw_p_target_touched ?? null,
+            calibrated_p_target_touched: raw.target_probabilities?.calibrated_p_target_touched ?? raw.target_probabilities?.raw_p_target_touched ?? null,
+            raw_p_finish_above: raw.target_probabilities?.raw_p_finish_above ?? null,
+            calibrated_p_finish_above: raw.target_probabilities?.calibrated_p_finish_above ?? raw.target_probabilities?.raw_p_finish_above ?? null,
+            calibrated_p_stop_touched: raw.target_probabilities?.calibrated_p_stop_touched ?? null,
           },
           downside_probabilities: {
-            p_loss_overall: raw.downside_probabilities?.p_loss_overall ?? 0.473,
-            p_minus_5pct: raw.downside_probabilities?.p_minus_5pct ?? 0.192,
-            p_minus_10pct: raw.downside_probabilities?.p_minus_10pct ?? 0.047,
-            p_minus_20pct: raw.downside_probabilities?.p_minus_20pct ?? 0.001,
+            p_loss_overall: raw.downside_probabilities?.p_loss_overall ?? null,
+            p_minus_5pct: raw.downside_probabilities?.p_minus_5pct ?? null,
+            p_minus_10pct: raw.downside_probabilities?.p_minus_10pct ?? null,
+            p_minus_20pct: raw.downside_probabilities?.p_minus_20pct ?? null,
           },
           scenarios: Object.keys(scMap).length > 0 ? scMap : undefined,
           model_metadata: {
             ensemble_models: ["Amazon Chronos-2 Foundation Model", "HistGradientBoosting Tabular Classifier", "Historical Empirical Baseline"],
-            calibration_status: raw.model_metadata?.calibration || raw.model_metadata?.calibration_status || "GOOD",
-            brier_score: raw.model_metadata?.brier_score ?? 0.082,
-            reliability_error_ece: raw.model_metadata?.expected_calibration_error ?? raw.model_metadata?.reliability_error_ece ?? 0.034,
-            sample_size: raw.data_quality?.sample_size || 4821,
+            calibration_status: raw.model_metadata?.calibration || raw.model_metadata?.calibration_status || null,
+            brier_score: raw.model_metadata?.brier_score ?? null,
+            reliability_error_ece: raw.model_metadata?.expected_calibration_error ?? raw.model_metadata?.reliability_error_ece ?? null,
+            sample_size: raw.data_quality?.sample_size ?? null,
             test_period: "Out-of-sample chronological walk-forward",
           },
           comparable_events: compObj,
@@ -2630,9 +2635,9 @@ export default function TerminalHome() {
                     <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>MODEL CALIBRATION</div>
                       <div style={{ fontSize: "16px", fontWeight: 900, color: "var(--green-gain)" }}>
-                        ● {scenarioResult.model_metadata?.calibration_status || "GOOD"}
+                        ● {scenarioResult.model_metadata?.calibration_status || "UNAVAILABLE"}
                       </div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>Brier: {scenarioResult.model_metadata?.brier_score} | ECE: {scenarioResult.model_metadata?.reliability_error_ece}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>Brier: {scenarioResult.model_metadata?.brier_score != null ? scenarioResult.model_metadata.brier_score : "N/A"} | ECE: {scenarioResult.model_metadata?.reliability_error_ece != null ? scenarioResult.model_metadata.reliability_error_ece : "N/A"}</div>
                     </div>
                   </div>
 

@@ -26,17 +26,12 @@ class ProbabilityCalibrationEngine:
         self.method = method.lower()
         self.calibrator = None
         self.is_fitted = False
-        self._init_default_calibrator()
-
-    def _init_default_calibrator(self):
-        """Fit with empirical market baseline predictions to ensure out-of-the-box calibrated outputs."""
-        # Realistic empirical out-of-sample prediction vs realization dataset (N=500 events)
-        np.random.seed(42)
-        raw_probs = np.random.uniform(0.05, 0.95, 500)
-        # Empirical realizations with realistic slight overconfidence
-        true_outcomes = (np.random.uniform(0, 1, 500) < (raw_probs * 0.92 + 0.04)).astype(int)
-
-        self.fit(raw_probs, true_outcomes)
+        # NOTE: The calibrator intentionally starts UNFITTED. A calibration map must
+        # be learned from real out-of-sample walk-forward predictions and their
+        # realized outcomes. Fabricating a synthetic seed would produce a meaningless
+        # "calibrated" probability, so we refuse to do so. Until real holdout data is
+        # supplied via `fit()`, `calibrate()` returns the raw probability unchanged and
+        # the engine reports CALIBRATION: INSUFFICIENT.
 
     def fit(self, raw_probabilities: np.ndarray, outcomes: np.ndarray):
         """Fit calibration model on out-of-sample walk-forward predictions."""
@@ -59,7 +54,12 @@ class ProbabilityCalibrationEngine:
         self.is_fitted = True
 
     def calibrate(self, raw_probability: float) -> float:
-        """Transform a raw model probability into an out-of-sample calibrated probability."""
+        """Transform a raw model probability into an out-of-sample calibrated probability.
+
+        When no real out-of-sample calibration data has been fitted, the raw
+        probability is returned unchanged (clamped) — it is NOT silently
+        "calibrated" against fabricated data.
+        """
         p = float(max(0.001, min(0.999, raw_probability)))
         if not self.is_fitted or self.calibrator is None:
             return round(p, 4)
@@ -85,12 +85,15 @@ class ProbabilityCalibrationEngine:
 
         if n == 0:
             return {
-                "brier_score": 0.16,
-                "log_loss": 0.48,
-                "expected_calibration_error": 0.05,
-                "rating": "GOOD",
+                "brier_score": None,
+                "log_loss": None,
+                "expected_calibration_error": None,
+                "ece": None,
+                "rating": "INSUFFICIENT",
                 "sample_size": 0,
                 "deciles": [],
+                "calibration_buckets": [],
+                "disclaimer": "No out-of-sample predictions available to evaluate calibration.",
             }
 
         # 1. Brier Score = 1/N * sum((p - y)^2)

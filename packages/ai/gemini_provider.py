@@ -13,6 +13,45 @@ from .base import LLMProvider, LLMResponse
 logger = get_logger(__name__)
 
 
+def _pydantic_to_gemini_schema(model: Type[BaseModel]) -> Dict[str, Any]:
+    """Convert a Pydantic model's JSON schema to Gemini's `responseSchema` format.
+
+    Gemini expects a subset of OpenAPI 3.0 schema with UPPERCASE type names and
+    no `$defs`/`title`/`default` keys. This produces a valid schema so structured
+    output is enforced server-side rather than relying on free-text JSON parsing.
+    """
+    raw = model.model_json_schema()
+
+    def convert(node: Any) -> Any:
+        if isinstance(node, dict):
+            out: Dict[str, Any] = {}
+            for key, value in node.items():
+                if key in ("$defs", "title", "default", "examples", "$schema", "$id"):
+                    continue
+                if key == "type" and isinstance(value, str):
+                    out[key] = value.upper()
+                elif key == "properties":
+                    out[key] = {k: convert(v) for k, v in value.items()}
+                elif key == "items":
+                    out[key] = convert(value)
+                elif key == "anyOf":
+                    out[key] = [convert(v) for v in value]
+                elif key == "required":
+                    out[key] = value
+                else:
+                    out[key] = convert(value)
+            return out
+        if isinstance(node, list):
+            return [convert(v) for v in node]
+        return node
+
+    converted = convert(raw)
+    # Gemini requires a top-level type; default to OBJECT for model schemas.
+    if "type" not in converted:
+        converted["type"] = "OBJECT"
+    return converted
+
+
 class GeminiProvider(LLMProvider):
     """Google Gemini API Provider adapter with automatic model fallback."""
 
@@ -49,6 +88,7 @@ class GeminiProvider(LLMProvider):
         }
         if schema:
             generation_config["responseMimeType"] = "application/json"
+            generation_config["responseSchema"] = _pydantic_to_gemini_schema(schema)
 
         payload: Dict[str, Any] = {
             "contents": [{"parts": [{"text": prompt}]}],

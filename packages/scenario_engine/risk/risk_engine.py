@@ -26,15 +26,18 @@ class RiskEngine:
     ) -> Dict[str, Any]:
         """Compute portfolio or single-asset statistical risk metrics."""
         if not returns or len(returns) < 5:
+            # Insufficient observations: refuse to fabricate risk statistics.
             return {
-                "var_95_pct": 2.45,
-                "var_99_pct": 3.85,
-                "cvar_95_pct": 3.20,
-                "cvar_99_pct": 4.90,
-                "annualized_volatility_pct": 18.5,
-                "downside_deviation_pct": 11.2,
-                "max_drawdown_pct": 14.5,
-                "beta_to_nifty": 1.05,
+                "status": "INSUFFICIENT_DATA",
+                "var_95_pct": None,
+                "var_99_pct": None,
+                "cvar_95_pct": None,
+                "cvar_99_pct": None,
+                "annualized_volatility_pct": None,
+                "downside_deviation_pct": None,
+                "max_drawdown_pct": None,
+                "beta_to_nifty": None,
+                "note": "At least 5 return observations are required to compute risk metrics.",
             }
 
         r = np.array(returns, dtype=float)
