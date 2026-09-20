@@ -188,31 +188,13 @@ export default function TerminalHome() {
   const [isResearching, setIsResearching] = useState(false);
 
   // Watchlist state
-  const [watchlistItems, setWatchlistItems] = useState<any[]>([
-    { id: "w-1", symbol: "RELIANCE", name: "Reliance Industries Limited", is_muted: false, added_at: "Today" },
-    { id: "w-2", symbol: "LT", name: "Larsen & Toubro Limited", is_muted: false, added_at: "Today" },
-    { id: "w-3", symbol: "TCS", name: "Tata Consultancy Services Limited", is_muted: true, added_at: "Yesterday" },
-  ]);
+  const [watchlistItems, setWatchlistItems] = useState<any[]>([]);
   const [newWatchSymbol, setNewWatchSymbol] = useState("");
 
   // Portfolio state
-  const [portfolioStatus, setPortfolioStatus] = useState<any>({
-    enabled: true,
-    is_authenticated: true,
-    user_id: "86BCDQ",
-    message: "Upstox Market Feed V3 Connected (Active Read-Only Session)",
-  });
-  const [portfolioHoldings, setPortfolioHoldings] = useState<any[]>([
-    { symbol: "RELIANCE", company_name: "Reliance Industries Ltd", quantity: 15, average_price: 2940.0, last_price: 3021.23, invested_value: 44100.0, current_value: 45318.45, pnl: 1218.45, pnl_pct: 2.76 },
-    { symbol: "LT", company_name: "Larsen & Toubro Ltd", quantity: 8, average_price: 3550.0, last_price: 3712.45, invested_value: 28400.0, current_value: 29699.6, pnl: 1299.6, pnl_pct: 4.58 },
-    { symbol: "TCS", company_name: "Tata Consultancy Services", quantity: 5, average_price: 4180.0, last_price: 4250.0, invested_value: 20900.0, current_value: 21250.0, pnl: 350.0, pnl_pct: 1.67 },
-  ]);
-  const [portfolioTotals, setPortfolioTotals] = useState<any>({
-    total_invested: 93400.0,
-    total_current_value: 96268.05,
-    total_pnl: 2868.05,
-    total_pnl_pct: 3.07,
-  });
+  const [portfolioStatus, setPortfolioStatus] = useState<any>(null);
+  const [portfolioHoldings, setPortfolioHoldings] = useState<any[]>([]);
+  const [portfolioTotals, setPortfolioTotals] = useState<any>(null);
 
   // AI Capital Analyst & Scenario State
   const [scenarioSymbol, setScenarioSymbol] = useState("RELIANCE");
@@ -220,7 +202,7 @@ export default function TerminalHome() {
   const [scenarioHorizon, setScenarioHorizon] = useState("3M");
   const [scenarioTargetPrice, setScenarioTargetPrice] = useState(1600.0);
   const [scenarioStopLoss, setScenarioStopLoss] = useState(2700.0);
-  const [scenarioBenchmark, setScenarioBenchmark] = useState("NIFTY 50");
+  const [scenarioBenchmark, setScenarioBenchmark] = useState("");
   const [scenarioResult, setScenarioResult] = useState<any>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
@@ -233,7 +215,7 @@ export default function TerminalHome() {
     unchanged: null,
     advance_decline_ratio: null,
     market_regime: null,
-    benchmark_index: "NIFTY 500",
+    benchmark_index: null,
     index_last: null,
     index_change_pct: null,
   });
@@ -257,17 +239,17 @@ export default function TerminalHome() {
   const [backtestStrategy, setBacktestStrategy] = useState("ORDER_WIN_MOMENTUM");
   const [backtestPeriod, setBacktestPeriod] = useState("2Y");
   const [backtestResult, setBacktestResult] = useState<any>({
-    strategy: "Order Win Materiality Momentum",
-    universe: "NIFTY 500 (Cleaned)",
-    period: "2 Years (Walk-Forward)",
-    total_trades: 184,
-    win_rate: "67.4%",
-    cagr: "+24.8%",
-    max_drawdown: "-11.2%",
-    sharpe: 1.84,
-    sortino: 2.31,
-    estimated_costs_pct: "0.42% (STT, Brokerage, GST, Slippage)",
-    lookahead_controls: "STRICT POINT-IN-TIME (As-of Joins)",
+    strategy: null,
+    universe: null,
+    period: null,
+    total_trades: null,
+    win_rate: null,
+    cagr: null,
+    max_drawdown: null,
+    sharpe: null,
+    sortino: null,
+    estimated_costs_pct: null,
+    lookahead_controls: null,
   });
 
   // Explorer Data State — zeros until /explorer/summary responds with real counts
@@ -716,15 +698,15 @@ export default function TerminalHome() {
         const data = await res.json();
         setBacktestResult({
           strategy: data.strategy || backtestStrategy,
-          universe: "NIFTY 500 (Point-in-time)",
-          period: `${data.holding_period_days || backtestPeriod} Sessions Holding`,
-          total_trades: data.total_events_tested || 7,
-          win_rate: `${data.win_rate_pct || 85.7}%`,
-          cagr: `+${data.cumulative_net_return_pct || 24.26}%`,
-          max_drawdown: `-${data.max_drawdown_pct || 2.85}%`,
-          sharpe: data.sharpe_ratio || 5.69,
-          sortino: data.sortino_ratio || 6.21,
-          estimated_costs_pct: `${data.transaction_costs_applied_pct || 0.15}% (STT, Brokerage, Slippage)`,
+  universe: data.universe ?? null,
+  period: data.holding_period_days != null ? `${data.holding_period_days} Sessions Holding` : null,
+  total_trades: data.total_events_tested ?? null,
+  win_rate: data.win_rate_pct != null ? `${data.win_rate_pct}%` : null,
+  cagr: data.cumulative_net_return_pct != null ? `${data.cumulative_net_return_pct}%` : null,
+  max_drawdown: data.max_drawdown_pct != null ? `-${data.max_drawdown_pct}%` : null,
+  sharpe: data.sharpe_ratio ?? null,
+  sortino: data.sortino_ratio ?? null,
+  estimated_costs_pct: data.transaction_costs_applied_pct != null ? `${data.transaction_costs_applied_pct}% (STT, Brokerage, Slippage)` : null,
           lookahead_controls: "STRICT POINT-IN-TIME (Zero Future Leakage)",
           last_run_timestamp: new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }),
         });
@@ -1574,7 +1556,7 @@ export default function TerminalHome() {
                     {breadth.market_regime || "AWAITING LIVE FEED"}
                   </span>
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    Evidence: {breadth.benchmark_index || "NIFTY 500"} @ {breadth.index_last != null ? `₹${breadth.index_last.toLocaleString()}` : "—"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "—"}, A/D Ratio {breadth.advance_decline_ratio != null ? `${breadth.advance_decline_ratio.toFixed(2)}x` : "—"} ({breadth.status || "FEED_OFFLINE"})
+                    Evidence: {breadth.benchmark_index || "—"} @ {breadth.index_last != null ? `₹${breadth.index_last.toLocaleString()}` : "—"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "—"}, A/D Ratio {breadth.advance_decline_ratio != null ? `${breadth.advance_decline_ratio.toFixed(2)}x` : "—"} ({breadth.status || "FEED_OFFLINE"})
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "11px" }}>
@@ -3189,7 +3171,7 @@ export default function TerminalHome() {
                   </p>
                 </div>
                 <span className="badge-critical" style={{ backgroundColor: "var(--green-dim)", color: "var(--green-gain)", borderColor: "var(--green-gain)" }}>
-                  UPSTOX V3 CONNECTED (USER: 86BCDQ)
+                  {portfolioStatus?.is_authenticated ? `UPSTOX V3 CONNECTED${portfolioStatus.user_id ? ` (USER: ${portfolioStatus.user_id})` : ""}` : "PORTFOLIO FEED UNAVAILABLE"}
                 </span>
               </div>
 
@@ -3198,27 +3180,25 @@ export default function TerminalHome() {
                 <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>TOTAL INVESTED</div>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>
-                    ₹{portfolioTotals.total_invested.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    {portfolioTotals?.total_invested != null ? `₹${portfolioTotals.total_invested.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
                   </div>
                 </div>
                 <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>CURRENT VALUE</div>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>
-                    ₹{portfolioTotals.total_current_value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    {portfolioTotals?.total_current_value != null ? `₹${portfolioTotals.total_current_value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
                   </div>
                 </div>
                 {(() => {
-                  const pnl = Number(portfolioTotals.total_pnl || 0);
-                  const invested = Number(portfolioTotals.total_invested || 0);
-                  const pnlPct = portfolioTotals.total_pnl_pct !== undefined
-                    ? Number(portfolioTotals.total_pnl_pct)
-                    : (invested > 0 ? (pnl / invested) * 100 : 0);
-                  const isPositive = pnl >= 0;
+                  const pnl = portfolioTotals?.total_pnl != null ? Number(portfolioTotals.total_pnl) : null;
+const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotals.total_invested) : null;
+  const pnlPct = portfolioTotals?.total_pnl_pct != null ? Number(portfolioTotals.total_pnl_pct) : null;
+  const isPositive = pnl != null && pnl >= 0;
                   return (
                     <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>TOTAL P&L</div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: isPositive ? "var(--green-gain)" : "var(--red-loss)", marginTop: "2px" }}>
-                        {isPositive ? "+" : "-"}₹{Math.abs(pnl).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({isPositive ? "+" : "-"}{Math.abs(pnlPct).toFixed(2)}%)
+                        {pnl != null && pnlPct != null ? `${isPositive ? "+" : "-"}₹${Math.abs(pnl).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPositive ? "+" : "-"}${Math.abs(pnlPct).toFixed(2)}%)` : "—"}
                       </div>
                     </div>
                   );
