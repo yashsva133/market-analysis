@@ -109,7 +109,10 @@ class NseAdapter(ProviderAdapter):
         resp = await self._execute_http_request(securities_url)
         content = resp.text
 
-        reader = csv.DictReader(io.StringIO(content))
+        reader = csv.DictReader(io.StringIO(content.lstrip("\ufeff")), skipinitialspace=True)
+        reader.fieldnames = [name.strip() for name in (reader.fieldnames or [])]
+        if not {"SYMBOL", "NAME OF COMPANY", "ISIN NUMBER"}.issubset(reader.fieldnames):
+            raise ValueError("NSE security master returned an unexpected CSV schema (possibly an HTML error page)")
         securities = []
         for row in reader:
             # Fields: SYMBOL, NAME OF COMPANY, SERIES, DATE OF LISTING, PAID UP VALUE, MARKET LOT, ISIN NUMBER, FACE VALUE
@@ -118,7 +121,7 @@ class NseAdapter(ProviderAdapter):
             name = row.get("NAME OF COMPANY", "").strip()
             series = row.get("SERIES", "EQ").strip()
 
-            if isin and symbol:
+            if symbol:
                 securities.append({
                     "isin": isin,
                     "symbol": symbol,

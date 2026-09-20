@@ -91,7 +91,10 @@ class BseAdapter(ProviderAdapter):
         scrip_url = "https://www.bseindia.com/downloads/Help/file/equity.csv"
         try:
             resp = await self._execute_http_request(scrip_url)
-            reader = csv.DictReader(io.StringIO(resp.text))
+            reader = csv.DictReader(io.StringIO(resp.text.lstrip("\ufeff")), skipinitialspace=True)
+            reader.fieldnames = [name.strip() for name in (reader.fieldnames or [])]
+            if not {"Security Code", "Security Name", "ISIN No"}.issubset(reader.fieldnames):
+                raise ValueError("BSE security master returned an unexpected CSV schema (possibly an HTML error page)")
             scrips = []
             for row in reader:
                 # Expected fields: Security Code, Security Id, Security Name, Status, Group, Face Value, ISIN No, Industry, Instrument
@@ -102,7 +105,7 @@ class BseAdapter(ProviderAdapter):
                 group = row.get("Group", "A").strip()
                 status = row.get("Status", "Active").strip()
 
-                if isin and scrip_code:
+                if scrip_code:
                     scrips.append({
                         "isin": isin,
                         "symbol": symbol or scrip_code,
@@ -116,4 +119,4 @@ class BseAdapter(ProviderAdapter):
             return scrips
         except Exception as e:
             logger.warning(f"Could not load live BSE equity.csv: {e}")
-            return []
+            raise
