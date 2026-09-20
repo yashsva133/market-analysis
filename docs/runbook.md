@@ -40,7 +40,7 @@ python scripts/doctor.py
 Output: `SYSTEM READY` | `SYSTEM READY WITH WARNINGS` | `SYSTEM NOT READY`
 
 ### B. Real-Service Smoke Tests (§68)
-Tests live integrations against Upstox V3, Google Gemini, PostgreSQL, and local web services.
+Tests live integrations against Upstox V2, Google Gemini, PostgreSQL, and local web services.
 ```powershell
 python scripts/smoke_test.py
 ```
@@ -52,10 +52,11 @@ Validates the complete quantitative chain (Data -> Features -> Models -> Probabi
 python scripts/verify_live_api.py
 ```
 
-### D. Automated Test Suite (61 Tests)
+### D. Automated Test Suite (66 tests + 1 Playwright UI test)
 ```powershell
 python -m pytest tests/ -v
 ```
+The Playwright test skips automatically when Chromium is not installed.
 
 ---
 
@@ -72,7 +73,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/market_termin
 # If omitted, local deterministic rule-based research engine is used
 GEMINI_API_KEY=
 
-# Optional: Upstox API V3 (Authenticated market & portfolio data)
+# Optional: Upstox API V2 (Authenticated market & portfolio data)
 # If omitted, free public exchange data and paper portfolio are used
 UPSTOX_CLIENT_ID=
 UPSTOX_CLIENT_SECRET=
@@ -91,7 +92,7 @@ TELEGRAM_CHAT_ID=
 ### Chronos-2 Foundation Forecaster
 - **Mode:** Hardware-aware. If PyTorch and Hugging Face weights are present, runs neural time-series quantiles; otherwise, runs local heavy-tailed empirical quantile engine without network stalls.
 - **Quantiles Computed:** Q10, Q25, Q40, Q50, Q60, Q75, Q90, Q95.
-- **Model Gating:** Automatically flags models as `POOR` or `GATED` when Brier score or Expected Calibration Error (ECE) exceed acceptable thresholds.
+- **Model Gating:** Models are `EXPERIMENTAL` until they pass gating on real out-of-sample holdouts. Calibration is reported as `INSUFFICIENT` (never fabricated as `GOOD`) until a persisted holdout set exists.
 
 ### Whole-Shares Capital Execution Simulator (§18, §23)
 - Indian cash equities do not permit fractional execution.

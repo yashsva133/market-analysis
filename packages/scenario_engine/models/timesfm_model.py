@@ -187,5 +187,4 @@ class TimesFMForecastModel:
             "drift_pct": drift_pct,
             "bandwidth_pct": bandwidth_pct,
             "directional_bias": "BULLISH" if drift_pct > 2.0 else ("BEARISH" if drift_pct < -2.0 else "NEUTRAL"),
-            "confidence_score": 0.88,
         }
