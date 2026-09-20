@@ -1,9 +1,8 @@
-"""Free and public market data provider using Yahoo Finance / Bhavcopy with offline resilience."""
+"""Free and public market data provider using Yahoo Finance / Bhavcopy. Unavailable feeds report None/empty — no synthetic substitutes."""
 import asyncio
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-import math
 
 from packages.common.logging import get_logger
 from packages.common.models import Security
@@ -114,38 +113,10 @@ class FreeMarketDataProvider(MarketDataProvider):
             if candles:
                 return candles
         except Exception as e:
-            logger.debug(f"Online historical candles fetch failed for {ticker}: {e}. Generating deterministic series.")
+            logger.debug(f"Online historical candles fetch failed for {ticker}: {e}. Reporting unavailable.")
 
-        # Offline synthetic historical candle series for zero-budget offline usage
-        seed = sum(ord(c) for c in security.symbol)
-        base = 500.0 + (seed % 2500)
-        days = 60
-        candles = []
-        cur_price = base
-        start_day = now - timedelta(days=days)
-
-        for i in range(days):
-            day_time = start_day + timedelta(days=i)
-            # Skip weekends
-            if day_time.weekday() >= 5:
-                continue
-            delta = math.sin((i + seed) * 0.3) * 15.0 + ((i % 5) - 2.0)
-            open_p = round(cur_price, 2)
-            close_p = round(cur_price + delta, 2)
-            high_p = round(max(open_p, close_p) + abs(delta * 0.5) + 2.0, 2)
-            low_p = round(min(open_p, close_p) - abs(delta * 0.5) - 1.5, 2)
-            vol = int(500000 + abs(delta * 50000) + ((i * seed) % 200000))
-            candles.append({
-                "timestamp": day_time.isoformat(),
-                "open": open_p,
-                "high": high_p,
-                "low": low_p,
-                "close": close_p,
-                "volume": vol,
-            })
-            cur_price = close_p
-
-        return candles
+        # Feed unreachable: no candle series is served rather than a synthetic one.
+        return []
 
     async def get_intraday_candles(
         self,
@@ -178,30 +149,8 @@ class FreeMarketDataProvider(MarketDataProvider):
         except Exception:
             pass
 
-        # Offline synthetic intraday candles (375 minutes in an Indian trading session 9:15 to 15:30)
-        seed = sum(ord(c) for c in security.symbol)
-        base = 500.0 + (seed % 2500)
-        session_start = now.replace(hour=3, minute=45, second=0, microsecond=0) # 09:15 IST = 03:45 UTC
-        candles = []
-        cur = base
-        for m in range(0, 75): # 75 5-minute bars = 375 mins
-            bar_time = session_start + timedelta(minutes=m * 5)
-            step = math.sin((m + seed) * 0.2) * 4.0
-            o = round(cur, 2)
-            c = round(cur + step, 2)
-            h = round(max(o, c) + 1.0, 2)
-            l = round(min(o, c) - 1.0, 2)
-            v = int(15000 + abs(step * 3000))
-            candles.append({
-                "timestamp": bar_time.isoformat(),
-                "open": o,
-                "high": h,
-                "low": l,
-                "close": c,
-                "volume": v,
-            })
-            cur = c
-        return candles
+        # Feed unreachable: no intraday series is served rather than a synthetic one.
+        return []
 
     async def get_market_status(self) -> Dict[str, Any]:
         # Indian market hours: 9:15 AM to 3:30 PM IST (UTC 03:45 to 10:00), Monday through Friday

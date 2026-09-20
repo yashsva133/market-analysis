@@ -59,47 +59,93 @@ async def test_global_search_matching():
 
 @pytest.mark.asyncio
 async def test_paper_trading_simulator_lifecycle():
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from packages.common.models import Security
+
     # 1. Reset simulator
     await reset_simulator()
-    acc = await get_simulator_account()
-    assert acc["cash_balance"] == 1000000.0
-    assert acc["positions_count"] == 0
 
-    # 2. Execute simulated BUY
-    buy_trade = SimulatedTradeRequest(
-        symbol="LT",
-        action="BUY",
-        quantity=10,
-        price=3620.0,
-        slippage_pct=0.05,
-    )
-    buy_res = await execute_simulated_trade(buy_trade)
-    assert buy_res["status"] == "ok"
-    assert buy_res["remaining_cash"] < 1000000.0
+    # Mock DB: LT resolves to an NSE security
+    lt_sec = Security(exchange="NSE", symbol="LT", is_active=True)
+    mock_db = AsyncMock()
+    res = MagicMock()
+    res.scalar_one_or_none.return_value = lt_sec
+    mock_db.execute = AsyncMock(return_value=res)
 
-    # 3. Verify open positions
-    pos_res = await get_simulator_positions()
-    assert len(pos_res["positions"]) == 1
-    assert pos_res["positions"][0]["symbol"] == "LT"
-    assert pos_res["positions"][0]["quantity"] == 10
+    # Mock live quote feed
+    async def fake_quote(sec):
+        return {"last_price": 3620.0, "symbol": sec.symbol}
 
-    # 4. Execute simulated SELL
-    sell_trade = SimulatedTradeRequest(
-        symbol="LT",
-        action="SELL",
-        quantity=5,
-        price=3650.0,
-        slippage_pct=0.05,
-    )
-    sell_res = await execute_simulated_trade(sell_trade)
-    assert sell_res["status"] == "ok"
+    with patch("apps.api.routers.simulator.market_data_manager") as mock_mgr:
+        mock_mgr.get_quote = AsyncMock(side_effect=fake_quote)
 
-    # 5. Check remaining positions
-    pos_after = await get_simulator_positions()
-    assert pos_after["positions"][0]["quantity"] == 5
+        acc = await get_simulator_account(db=mock_db)
+        assert acc["cash_balance"] == 1000000.0
+        assert acc["positions_count"] == 0
+
+        # 2. Execute simulated BUY at the live quote (no explicit price)
+        buy_trade = SimulatedTradeRequest(
+            symbol="LT",
+            action="BUY",
+            quantity=10,
+            slippage_pct=0.05,
+        )
+        buy_res = await execute_simulated_trade(buy_trade, db=mock_db)
+        assert buy_res["status"] == "ok"
+        assert buy_res["trade"]["price_source"] == "LIVE_QUOTE"
+        assert buy_res["remaining_cash"] < 1000000.0
+
+        # 3. Verify open positions
+        pos_res = await get_simulator_positions(db=mock_db)
+        assert len(pos_res["positions"]) == 1
+        assert pos_res["positions"][0]["symbol"] == "LT"
+        assert pos_res["positions"][0]["quantity"] == 10
+        assert pos_res["positions"][0]["price_available"] is True
+
+        # 4. Execute simulated SELL
+        sell_trade = SimulatedTradeRequest(
+            symbol="LT",
+            action="SELL",
+            quantity=5,
+            price=3650.0,
+            slippage_pct=0.05,
+        )
+        sell_res = await execute_simulated_trade(sell_trade, db=mock_db)
+        assert sell_res["status"] == "ok"
+
+        # 5. Check remaining positions
+        pos_after = await get_simulator_positions(db=mock_db)
+        assert pos_after["positions"][0]["quantity"] == 5
 
     # 6. Reset
     await reset_simulator()
-    acc_after = await get_simulator_account()
+    acc_after = await get_simulator_account(db=mock_db)
     assert acc_after["cash_balance"] == 1000000.0
     assert acc_after["positions_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_simulator_rejects_trade_without_live_quote():
+    """No live quote and no explicit price: the order is rejected, never filled at a made-up price."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from fastapi import HTTPException
+    from packages.common.models import Security
+
+    await reset_simulator()
+    lt_sec = Security(exchange="NSE", symbol="LT", is_active=True)
+    mock_db = AsyncMock()
+    res = MagicMock()
+    res.scalar_one_or_none.return_value = lt_sec
+    mock_db.execute = AsyncMock(return_value=res)
+
+    with patch("apps.api.routers.simulator.market_data_manager") as mock_mgr:
+        mock_mgr.get_quote = AsyncMock(return_value=None)
+
+        trade = SimulatedTradeRequest(symbol="LT", action="BUY", quantity=10)
+        with pytest.raises(HTTPException) as exc_info:
+            await execute_simulated_trade(trade, db=mock_db)
+        assert exc_info.value.status_code == 503
+
+    # Nothing was filled
+    assert _sim.trades == []
+    assert _sim.positions == {}

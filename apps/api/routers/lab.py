@@ -1,122 +1,314 @@
 """Research Lab & Deterministic Backtesting Router.
 
-Enables quantitative researchers to:
-- Test event-study rules (e.g. price reaction 1D, 5D, 20D post Large Order Win or Demerger)
-- Evaluate indicator strategies with realistic transaction costs (0.1% fees + 0.05% slippage)
-- Inspect Sharpe, Sortino, Win/Loss ratios, and Max Drawdown
-- Run local CPU-friendly time-series price forecasts
-Strictly non-advisory and non-predictive. No automated trading execution.
+Event-study and rule backtests computed strictly from ingested events and
+real historical candles fetched from the active market data provider. No
+pre-computed trade logs and no synthetic price series: when there is no
+ingested evidence or candle history, the endpoint says so. Strictly
+non-advisory and non-predictive. No automated trading execution.
 """
-from fastapi import APIRouter, HTTPException, Query
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from packages.common.database import get_db
+from packages.common.models import Company, Event, Security
 from packages.market_data.forecasting import ForecastingEngine, ForecastResult
+from packages.market_data.manager import market_data_manager
 
 router = APIRouter(prefix="/api/lab", tags=["lab"])
 
+# Event-type SQL patterns per event-study strategy
+STRATEGY_EVENT_PATTERNS: Dict[str, List[str]] = {
+    "EVENT_STUDY_ORDER_WIN": ["%ORDER%", "%CONTRACT%"],
+    "EARNINGS_BEAT": ["%EARNINGS%", "%RESULTS%", "%PROFIT%"],
+}
+
+DISCLAIMER = (
+    "HISTORICAL OBSERVATION COMPUTED FROM INGESTED EVENTS AND REAL CANDLES. "
+    "PAST STATISTICAL PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS. NO LIVE TRADING ORDERS."
+)
+
 
 class BacktestRequest(BaseModel):
-    strategy_type: str = Field(description="EVENT_STUDY_ORDER_WIN, RSI_OVERSOLD_REBOUND, or EARNINGS_BEAT")
-    symbols: List[str] = Field(default=["LT", "RELIANCE", "TCS", "INFY"])
+    strategy_type: str = Field(
+        description="EVENT_STUDY_ORDER_WIN, EARNINGS_BEAT, or RSI_OVERSOLD_REBOUND"
+    )
+    symbols: List[str] = Field(
+        default_factory=list,
+        description="Optional symbol filter. Required for RSI_OVERSOLD_REBOUND.",
+    )
     holding_period_days: int = Field(default=10, ge=1, le=60)
     slippage_pct: float = Field(default=0.05, description="Slippage per round-trip trade")
     fee_pct: float = Field(default=0.10, description="STT, exchange turnover and brokerage fees")
 
 
-@router.post("/backtest")
-async def run_backtest(req: BacktestRequest):
-    """Execute deterministic historical event-study or rule backtest with transaction costs."""
-    strat = req.strategy_type.upper()
+def _parse_ts(ts: Any) -> Optional[datetime]:
+    if ts is None:
+        return None
+    if isinstance(ts, datetime):
+        return ts
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
-    # Pre-computed grounded historical event-study simulations
-    base_trades = [
-        {"symbol": "LT", "event_date": "2025-07-15", "entry_price": 3410.0, "exit_price": 3580.0, "pnl_pct": 4.98, "holding_days": req.holding_period_days},
-        {"symbol": "LT", "event_date": "2025-10-25", "entry_price": 3520.0, "exit_price": 3695.0, "pnl_pct": 4.97, "holding_days": req.holding_period_days},
-        {"symbol": "RELIANCE", "event_date": "2025-08-10", "entry_price": 2850.0, "exit_price": 2960.0, "pnl_pct": 3.86, "holding_days": req.holding_period_days},
-        {"symbol": "RELIANCE", "event_date": "2025-11-18", "entry_price": 2980.0, "exit_price": 2910.0, "pnl_pct": -2.35, "holding_days": req.holding_period_days},
-        {"symbol": "TCS", "event_date": "2025-09-02", "entry_price": 4120.0, "exit_price": 4280.0, "pnl_pct": 3.88, "holding_days": req.holding_period_days},
-        {"symbol": "INFY", "event_date": "2025-10-18", "entry_price": 1820.0, "exit_price": 1895.0, "pnl_pct": 4.12, "holding_days": req.holding_period_days},
-        {"symbol": "TATAMOTORS", "event_date": "2025-08-28", "entry_price": 940.0, "exit_price": 995.0, "pnl_pct": 5.85, "holding_days": req.holding_period_days},
-    ]
 
-    cost_deduction = req.slippage_pct + req.fee_pct
-    net_trades = []
-    wins = 0
-    losses = 0
-    total_net_pnl = 0.0
-    returns_list = []
+async def _load_close_series(sec: Security) -> List[tuple]:
+    """Daily (timestamp, close) series from the live provider, sorted ascending."""
+    try:
+        candles = await market_data_manager.get_historical_candles(sec, interval="1d")
+    except Exception:
+        return []
+    series = []
+    for c in candles:
+        ts = _parse_ts(c.get("timestamp"))
+        close = c.get("close")
+        if ts is not None and close:
+            series.append((ts, float(close)))
+    series.sort(key=lambda x: x[0])
+    return series
 
-    for t in base_trades:
-        net_ret = round(t["pnl_pct"] - cost_deduction, 2)
-        returns_list.append(net_ret)
-        total_net_pnl += net_ret
-        if net_ret > 0:
-            wins += 1
-        else:
-            losses += 1
-        net_trades.append({
-            "symbol": t["symbol"],
-            "event_date": t["event_date"],
-            "entry_price": t["entry_price"],
-            "exit_price": t["exit_price"],
-            "gross_return_pct": t["pnl_pct"],
-            "net_return_pct": net_ret,
-            "holding_period_days": t["holding_days"],
-        })
 
-    n = len(net_trades)
-    win_rate = round((wins / n) * 100, 1) if n > 0 else 0.0
-    avg_return = round(total_net_pnl / n, 2) if n > 0 else 0.0
+async def _resolve_security(db: AsyncSession, symbol: str) -> Optional[Security]:
+    sym = symbol.strip().upper()
+    res = await db.execute(
+        select(Security).where(Security.symbol == sym, Security.exchange == "NSE")
+    )
+    sec = res.scalar_one_or_none()
+    if not sec:
+        res = await db.execute(select(Security).where(Security.symbol == sym))
+        sec = res.scalar_one_or_none()
+    return sec
 
-    # Risk metrics calculation
-    variance = sum((r - avg_return) ** 2 for r in returns_list) / max(1, n - 1)
-    std_dev = variance ** 0.5
-    downside_returns = [r for r in returns_list if r < 0]
-    downside_var = sum(r ** 2 for r in downside_returns) / max(1, len(downside_returns))
-    downside_std = downside_var ** 0.5
 
-    # Annualized approx (assuming 20 events/yr)
-    sharpe = round((avg_return / std_dev) * (20 ** 0.5), 2) if std_dev > 0 else 1.0
-    sortino = round((avg_return / downside_std) * (20 ** 0.5), 2) if downside_std > 0 else 1.5
+def _empty_result(strat: str, req: BacktestRequest, note: str) -> Dict[str, Any]:
+    return {
+        "status": "ok",
+        "strategy": strat,
+        "holding_period_days": req.holding_period_days,
+        "transaction_costs_applied_pct": round(req.slippage_pct + req.fee_pct, 3),
+        "total_events_tested": 0,
+        "profitable_trades": 0,
+        "losing_trades": 0,
+        "win_rate_pct": 0.0,
+        "average_net_return_per_event_pct": 0.0,
+        "cumulative_net_return_pct": 0.0,
+        "sharpe_ratio": None,
+        "sortino_ratio": None,
+        "max_drawdown_pct": 0.0,
+        "trade_log": [],
+        "note": note,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+def _summarize(strat: str, req: BacktestRequest, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+    n = len(trades)
+    net_rets = [t["net_return_pct"] for t in trades]
+    wins = sum(1 for r in net_rets if r > 0)
+    avg = sum(net_rets) / n
+    variance = sum((r - avg) ** 2 for r in net_rets) / max(1, n - 1)
+    std = variance ** 0.5
+    downside = [r for r in net_rets if r < 0]
+    dstd = (sum(r * r for r in downside) / len(downside)) ** 0.5 if downside else 0.0
+
+    # Annualize using the actual observation span, not an assumed frequency
+    entry_dates = [t["entry_ts"] for t in trades]
+    span_days = max(1, (max(entry_dates) - min(entry_dates)).days)
+    obs_per_year = n * 365.0 / span_days
+    sharpe = round((avg / std) * (obs_per_year ** 0.5), 2) if std > 0 else None
+    sortino = round((avg / dstd) * (obs_per_year ** 0.5), 2) if dstd > 0 else None
+
+    # Max drawdown over the cumulative return curve in entry-date order
+    cum = 0.0
+    peak = 0.0
+    mdd = 0.0
+    for t in sorted(trades, key=lambda x: x["entry_ts"]):
+        cum += t["net_return_pct"]
+        peak = max(peak, cum)
+        mdd = max(mdd, peak - cum)
 
     return {
         "status": "ok",
         "strategy": strat,
         "holding_period_days": req.holding_period_days,
-        "transaction_costs_applied_pct": round(cost_deduction, 3),
+        "transaction_costs_applied_pct": round(req.slippage_pct + req.fee_pct, 3),
         "total_events_tested": n,
         "profitable_trades": wins,
-        "losing_trades": losses,
-        "win_rate_pct": win_rate,
-        "average_net_return_per_event_pct": avg_return,
-        "cumulative_net_return_pct": round(total_net_pnl, 2),
-        "benchmark_nifty50_return_pct": 2.45,
+        "losing_trades": n - wins,
+        "win_rate_pct": round((wins / n) * 100, 1),
+        "average_net_return_per_event_pct": round(avg, 2),
+        "cumulative_net_return_pct": round(sum(net_rets), 2),
+        "observation_span_days": span_days,
         "sharpe_ratio": sharpe,
         "sortino_ratio": sortino,
-        "max_drawdown_pct": 2.85,
-        "trade_log": net_trades,
-        "disclaimer": "HISTORICAL EVENT STUDY. PAST STATISTICAL PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS. NO LIVE TRADING ORDERS.",
+        "max_drawdown_pct": round(mdd, 2),
+        "trade_log": [
+            {k: v for k, v in t.items() if k != "entry_ts"} for t in trades
+        ],
+        "disclaimer": DISCLAIMER,
     }
+
+
+@router.post("/backtest")
+async def run_backtest(req: BacktestRequest, db: AsyncSession = Depends(get_db)):
+    """Execute a real event-study or rule backtest with transaction costs.
+
+    Event studies match ingested events; RSI_OVERSOLD_REBOUND scans real
+    candle history for RSI(14) < 30 entries. Every entry/exit price comes
+    from the live historical candle feed.
+    """
+    strat = req.strategy_type.upper()
+    cost = req.slippage_pct + req.fee_pct
+    symbol_filter = [s.upper() for s in req.symbols] if req.symbols else None
+
+    trades: List[Dict[str, Any]] = []
+
+    if strat in STRATEGY_EVENT_PATTERNS:
+        patterns = STRATEGY_EVENT_PATTERNS[strat]
+        query = (
+            select(Event)
+            .options(selectinload(Event.company).selectinload(Company.securities))
+            .where(or_(*[Event.event_type.ilike(p) for p in patterns]))
+            .order_by(Event.announcement_time.desc().nullslast())
+            .limit(100)
+        )
+        events = (await db.execute(query)).scalars().all()
+        if not events:
+            return _empty_result(
+                strat, req,
+                "No ingested events match this strategy. Sync the event pipeline and re-run; "
+                "no synthetic trade log is served.",
+            )
+
+        for e in events:
+            if not e.company:
+                continue
+            secs = [s for s in e.company.securities if s.exchange == "NSE"] or list(e.company.securities)
+            if not secs:
+                continue
+            sec = secs[0]
+            if symbol_filter and sec.symbol not in symbol_filter:
+                continue
+            ann = _parse_ts(e.announcement_time)
+            if ann is None:
+                continue
+            series = await _load_close_series(sec)
+            if len(series) < req.holding_period_days + 2:
+                continue
+            entry_idx = next((i for i, (ts, _) in enumerate(series) if ts >= ann), None)
+            if entry_idx is None or entry_idx + req.holding_period_days >= len(series):
+                continue
+            entry_ts, entry_px = series[entry_idx]
+            exit_ts, exit_px = series[entry_idx + req.holding_period_days]
+            gross = (exit_px - entry_px) / entry_px * 100
+            trades.append({
+                "symbol": sec.symbol,
+                "event_type": e.event_type,
+                "event_date": ann.date().isoformat(),
+                "entry_date": entry_ts.date().isoformat(),
+                "exit_date": exit_ts.date().isoformat(),
+                "entry_price": round(entry_px, 2),
+                "exit_price": round(exit_px, 2),
+                "gross_return_pct": round(gross, 2),
+                "net_return_pct": round(gross - cost, 2),
+                "holding_period_days": req.holding_period_days,
+                "entry_ts": entry_ts,
+            })
+
+    elif strat == "RSI_OVERSOLD_REBOUND":
+        if not symbol_filter:
+            raise HTTPException(
+                status_code=400,
+                detail="RSI_OVERSOLD_REBOUND is a rule backtest over specified securities; "
+                       "provide an explicit 'symbols' list.",
+            )
+        for sym in symbol_filter:
+            sec = await _resolve_security(db, sym)
+            if not sec:
+                continue
+            series = await _load_close_series(sec)
+            closes = [px for _, px in series]
+            if len(closes) < 14 + req.holding_period_days + 2:
+                continue
+            period = 14
+            for i in range(period, len(closes) - req.holding_period_days):
+                window = closes[i - period:i + 1]
+                gains, losses = [], []
+                for a, b in zip(window, window[1:]):
+                    diff = b - a
+                    (gains if diff > 0 else losses).append(abs(diff))
+                avg_gain = sum(gains) / period
+                avg_loss = sum(losses) / period
+                if avg_loss == 0:
+                    continue
+                rs = avg_gain / avg_loss
+                rsi = 100 - (100 / (1 + rs))
+                if rsi >= 30:
+                    continue
+                entry_ts, entry_px = series[i]
+                exit_ts, exit_px = series[i + req.holding_period_days]
+                gross = (exit_px - entry_px) / entry_px * 100
+                trades.append({
+                    "symbol": sec.symbol,
+                    "event_type": "RSI_OVERSOLD",
+                    "event_date": entry_ts.date().isoformat(),
+                    "entry_date": entry_ts.date().isoformat(),
+                    "exit_date": exit_ts.date().isoformat(),
+                    "entry_price": round(entry_px, 2),
+                    "exit_price": round(exit_px, 2),
+                    "rsi_at_entry": round(rsi, 1),
+                    "gross_return_pct": round(gross, 2),
+                    "net_return_pct": round(gross - cost, 2),
+                    "holding_period_days": req.holding_period_days,
+                    "entry_ts": entry_ts,
+                })
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported strategy_type '{strat}'. Supported: "
+                   f"{sorted(set(STRATEGY_EVENT_PATTERNS) | {'RSI_OVERSOLD_REBOUND'})}",
+        )
+
+    if not trades:
+        return _empty_result(
+            strat, req,
+            "No tradable observations with sufficient real candle history. "
+            "No synthetic trades are served.",
+        )
+
+    return _summarize(strat, req, trades)
 
 
 @router.get("/forecast", response_model=ForecastResult)
 async def get_forecast(
-    symbol: str = Query("LT", description="Stock ticker symbol"),
+    symbol: str = Query(..., description="Stock ticker symbol"),
     horizon: int = Query(10, ge=1, le=30, description="Forecast horizon in trading days"),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Generate CPU-friendly time-series trend and prediction intervals for research exploration."""
-    # Synthetic baseline candle closes for projection
-    base_price = 3620.0 if symbol.upper() == "LT" else 2925.0
-    # Simulate 30 historical daily bars
-    prices = [
-        round(base_price * (1.0 + (i - 15) * 0.003 + (hash(f"{symbol}_{i}") % 100 - 50) * 0.0004), 2)
-        for i in range(30)
-    ]
+    """Generate a statistical projection from real historical closes.
 
-    result = ForecastingEngine.forecast(
-        symbol=symbol.upper(),
-        prices=prices,
-        horizon=horizon,
-    )
-    return result
+    Requires at least 30 real daily closes from the live candle feed; no
+    synthetic baseline series is ever substituted.
+    """
+    sym = symbol.strip().upper()
+    sec = await _resolve_security(db, sym)
+    if not sec:
+        raise HTTPException(status_code=404, detail=f"Symbol {sym} not found in the ingested universe")
+
+    series = await _load_close_series(sec)
+    closes = [px for _, px in series]
+    if len(closes) < 30:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                f"Insufficient real candle history for {sym} ({len(closes)} bars; need >= 30). "
+                "No synthetic projection is served. Verify market data connectivity."
+            ),
+        )
+
+    return ForecastingEngine.forecast(symbol=sym, prices=closes[-120:], horizon=horizon)
