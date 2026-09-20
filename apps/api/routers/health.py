@@ -116,7 +116,7 @@ async def get_metrics_summary(db: AsyncSession = Depends(get_db)) -> Dict[str, A
 
         return {
             "as_of": now.isoformat(),
-            "sources_healthy": sources_healthy or 5,
+            "sources_healthy": sources_healthy,
             "sources_degraded": sources_degraded,
             "sources_failed": sources_failed,
             "sources_rate_limited": sources_rate_limited,
@@ -133,21 +133,24 @@ async def get_metrics_summary(db: AsyncSession = Depends(get_db)) -> Dict[str, A
             "db_status": "online",
         }
     except Exception as e:
-        logger.debug(f"Database offline or initializing, returning resilient counters: {e}")
+        logger.debug(f"Database offline or initializing, returning zero counters: {e}")
+        # Database unreachable: report zero/unknown counters rather than
+        # fabricating plausible-looking activity metrics.
         return {
             "as_of": now.isoformat(),
-            "sources_healthy": 5,
+            "status": "UNAVAILABLE",
+            "sources_healthy": 0,
             "sources_degraded": 0,
             "sources_failed": 0,
             "sources_rate_limited": 0,
             "sources_stale": 0,
-            "items_fetched_today": 12,
-            "new_events": 8,
-            "critical_events": 2,
-            "high_events": 4,
-            "ai_calls": 8,
-            "ai_cache_hits": 3,
-            "alerts_sent": 2,
+            "items_fetched_today": 0,
+            "new_events": 0,
+            "critical_events": 0,
+            "high_events": 0,
+            "ai_calls": 0,
+            "ai_cache_hits": 0,
+            "alerts_sent": 0,
             "failed_jobs": 0,
             "stale_sources": 0,
             "db_status": "offline_resilient",

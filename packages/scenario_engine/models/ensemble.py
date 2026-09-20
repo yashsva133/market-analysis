@@ -23,8 +23,10 @@ class ForecastEnsemble:
         self.tabular_model = TabularProbabilityModel()
         self.calibrator = ProbabilityCalibrationEngine(method="isotonic")
 
-        # Empirical validation weights (Derived from rolling walk-forward pinball loss)
-        # Chronos-2 Foundation (45%), Tabular ML (35%), Volatility Baseline (20%)
+        # Default ensemble weights. These are INITIAL/PLACEHOLDER weights, not
+        # empirically derived: no persisted walk-forward evaluation exists yet in
+        # this deployment. They should be replaced by validation-derived weights
+        # once real out-of-sample pinball loss is available.
         self.weights = {
             "chronos": 0.45,
             "tabular": 0.35,
@@ -92,7 +94,11 @@ class ForecastEnsemble:
         ensemble_quantiles["q60"] = float(round(chronos_q.get("q60", ensemble_quantiles["q50"] * 1.02), 2))
         ensemble_quantiles["q95"] = float(round(chronos_q.get("q95", ensemble_quantiles["q90"] * 1.04), 2))
 
-        # 5. Out-of-sample Probability Calibration (§12)
+        # 5. Probability Calibration (§12)
+        # The calibrator is only fitted on real out-of-sample walk-forward holdouts.
+        # In this deployment no persisted holdout set exists, so calibration is
+        # reported as INSUFFICIENT and raw probabilities are returned unchanged —
+        # we never fabricate a calibration map or a Brier/ECE score.
         raw_p_touch = tab_res["p_target_touched"]
         raw_p_finish = tab_res["p_target_finished_above"]
         raw_p_stop = tab_res["p_stop_touched"]
@@ -101,22 +107,22 @@ class ForecastEnsemble:
         cal_p_finish = self.calibrator.calibrate(raw_p_finish)
         cal_p_stop = self.calibrator.calibrate(raw_p_stop)
 
-        # Calibration evaluation report
         cal_eval = self.calibrator.evaluate_calibration(
-            predicted_probs=np.array([raw_p_touch, raw_p_finish, raw_p_stop]),
-            actual_outcomes=np.array([1 if raw_p_touch > 0.5 else 0, 1 if raw_p_finish > 0.5 else 0, 0]),
+            predicted_probs=np.array([]),
+            actual_outcomes=np.array([]),
         )
 
         # 6. Model quality assessment
         beats_random_walk = abs(ensemble_quantiles["q50"] - current_price) > 0.1
+        calibration_rating = cal_eval["rating"]
         model_quality = {
             "status": "ACTIVE",
             "ensemble_version": self.ENSEMBLE_VERSION,
             "weights": self.weights,
             "beats_baseline": beats_random_walk,
             "brier_score": cal_eval["brier_score"],
-            "calibration_rating": cal_eval["rating"],
-            "is_trustworthy": True,
+            "calibration_rating": calibration_rating,
+            "is_trustworthy": calibration_rating in ("GOOD", "ACCEPTABLE"),
         }
 
         return {

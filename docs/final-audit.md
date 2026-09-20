@@ -1,56 +1,78 @@
-# India Market AI Research Terminal — Final Build Audit & Verification
+# India Market AI Research Terminal — Final Audit
 
-**System:** India Market AI Research Terminal  
-**Audit Date:** September 20, 2026  
-**Status:** **100% PRODUCTION VERIFIED & AUDITED**  
-**Standard:** Strict Verification Against Final Build Specification & Shipping Requirements  
-**Classification Rules:**
-- **REAL:** Fully implemented with active executable code, database persistence or backend API logic, and verified by passing tests or live execution.
-- **PARTIAL:** Core code exists and functions, but specific specification requirements require completion.
-- **MOCK:** Uses static or simulated fixtures instead of live data paths in normal operation.
-- **MISSING:** Feature requested in the specification that has not yet been authored in the codebase.
-- **BROKEN:** Code exists but crashes, fails tests, contains syntax/logic errors, or produces incorrect outputs.
-- **UNVERIFIED:** Code exists but lacks automated unit/integration tests or runtime proof.
+**Audit date:** September 20, 2026
+**Status:** Verified against the actual codebase (not against prior documentation).
+
+This audit reflects the repository as inspected and executed, not the claims of earlier reports. Where earlier documentation overstated a capability, this document corrects it.
 
 ---
 
-## 1. Subsystem Classification Matrix
+## 1. Verification Summary
 
-| Subsystem / Requirement Area | Spec Section | Classification | Evidence & Verifiable Code Paths |
-| :--- | :--- | :--- | :--- |
-| **0. Architecture & Stack** | §0 | **REAL** | Next.js 14 UI (`apps/web`), FastAPI API (`apps/api`), PostgreSQL 16 + pgvector (`db/init.sql`), Rule/Gemini/Ollama AI (`packages/ai`), Upstox mesh (`packages/market_data`). |
-| **1. Complete Repository Audit** | §1 | **REAL** | Full audit completed. All dead imports resolved, cp1252 Windows encoding fixed, point-in-time anti-leakage verified. |
-| **2. Final Integrated Platform** | §2 | **REAL** | Unified desktop research workstation running on ports 3000 & 8000. All 18 workspaces operational with graceful offline fallback. |
-| **3. Source Hierarchy (P0-P3)** | §3 | **REAL** | `packages/schemas/sources.py`, `packages/source_clients/base.py` — Priority levels P0 (NSE/BSE/IR), P1 (SEBI/RBI/PIB), P2 (News/RSS), P3 (Free/Wrappers). |
-| **4. Dynamic Universe Discovery** | §4 | **REAL** | `services/collector/universe_manager.py` — ISIN-based canonical deduplication, dual-listing (`ONE company, MULTIPLE securities`), symbol changes. Verified by `tests/test_universe.py`. |
-| **5. Source-Collection Engine** | §5 | **REAL** | `packages/source_clients/base.py`, `nse.py`, `bse.py`, `pib.py`, `rss.py` — Circuit breaker, rate limiter, retry budget, exponential backoff, correlation IDs, stale detection. |
-| **6. Document Intelligence** | §6 | **REAL** | `packages/documents/extractor.py` — PyMuPDF extraction, SHA-256 deduplication, page chunking, metadata extraction, page citations. Verified by `tests/test_pipeline_e2e.py`. |
-| **7. Document Diff / Change Detection**| §7 | **REAL** | `packages/documents/diff.py`, `apps/api/routers/documents.py` — Filing comparison engine: section diffing, numerical deltas, guidance shift identification. Verified by `tests/test_document_diff.py`. |
-| **8. Event Engine & Taxonomy** | §8 | **REAL** | `packages/schemas/taxonomy.py`, `configs/event_taxonomy.yaml` — 45+ event categories, strict semantic distinction (`ORDER != MOU != LOI != TENDER`), structured facts & unknowns. |
-| **9. Event Verification Layer** | §9 | **REAL** | `packages/ai/agents.py`, `services/processor/pipeline.py` — Extraction of `confirmed_facts`, `contradictions`, `unknowns`, and `verification_level`. |
-| **10. Materiality Engine** | §10 | **REAL** | `packages/ai/agents.py`, `configs/importance_rules.yaml` — Quantitative scaling against LTM revenue (>25% CRITICAL, >5% HIGH), absolute value thresholds, strict non-advisory nature. |
-| **11. Financial Statements & Metrics** | §11 | **REAL** | `packages/common/models.py` (`FinancialSnapshot`), `apps/api/routers/companies.py` — Captures revenue, PAT, EBITDA, debt, margins, ROE, ROCE. |
-| **12. Technical Analysis Engine** | §13 | **REAL** | `packages/market_data/technical.py` — Pure deterministic calculation of SMA, EMA, RSI (Wilder), MACD, ATR, ADX, Bollinger Bands, VWAP, 20D volume spikes, 52W high/low. Verified by `tests/test_technical.py`. |
-| **13. Probabilistic Forecasting Engine** | §6-10 | **REAL** | `packages/scenario_engine/models/chronos_model.py` — Chronos-2 foundation quantile forecaster (Q10–Q90) with hardware-aware inference, fallback empirical quantile model, and zero LLM hallucinated prices. |
-| **14. Whole-Shares Capital Execution** | §18 | **REAL** | `packages/scenario_engine/capital/capital_scenario.py` — Strict Indian cash equity integer lots `floor((capital - costs) / price)`. Insufficient capital flag when 0 shares. Verified by `tests/test_scenario_engine.py` and `tests/test_adversarial.py`. |
-| **15. Indian Statutory Cost Engine** | §19 | **REAL** | `packages/scenario_engine/capital/costs.py` — Configurable statutory schedule effective Oct 1, 2024: STT 0.1% buy/sell, exchange turnover 0.00297%, SEBI 0.0001%, stamp duty 0.015% buy, GST 18%. |
-| **16. Point-in-Time Anti-Leakage** | §11 | **REAL** | `packages/scenario_engine/features/price_features.py` — Strict temporal boundary rejection. Verified by 4 tests in `tests/test_leakage_detection.py` (future announcement, candle, financials, corporate actions rejected). |
-| **17. Walk-Forward Temporal Validation** | §12 | **REAL** | `packages/scenario_engine/simulation/walk_forward.py` — Expanding and rolling window evaluation asserting `max(train) < min(test)`. Verified by `tests/test_walk_forward.py`. |
-| **18. Probability Calibration Engine** | §14 | **REAL** | `packages/scenario_engine/probability/calibration.py` — Brier score, Expected Calibration Error (ECE), reliability decile buckets, and automatic model gating for uncalibrated models. |
-| **19. Upstox V3 Provider** | §30 | **REAL** | `packages/market_data/upstox_provider.py` — Authenticated V3 market data and portfolio integration. Read-only execution-free. Tested via `scripts/smoke_test.py`. |
-| **20. Google Gemini Research Agent** | §25 | **REAL** | `packages/rag_research/providers/gemini_provider.py` — Controlled research agent synthesizing qualitative evidence without numerical mutation. Tested via `scripts/smoke_test.py`. |
-| **21. Telegram Alert Engine** | §42 | **REAL** | `services/notifier/telegram_bot.py` — Factual alerts with evidence and timestamps, duplicate prevention, and non-advisory language. Verified by `tests/test_telegram_alerts.py`. |
-| **22. MCP Server** | §43 | **REAL** | `packages/mcp_server/server.py` — 14 read-only tools exposing market data, forecasts, scenarios, and research dossier. |
-| **23. System Doctor Diagnostic** | §76 | **REAL** | `scripts/doctor.py` — ASCII-safe diagnostic script validating Python, Node.js, RAM, disk, CUDA, models, ports, and tokens with clean remediation instructions. |
-| **24. Real-Service Smoke Tests** | §68 | **REAL** | `scripts/smoke_test.py` — Live validation of Upstox, Gemini, Database, and web services. Strictly reports `NOT CONFIGURED` when keys are omitted. |
-| **25. Automated Testing** | §65, §66 | **REAL** | 61/61 passing pytest tests (100% green in 22.57s) including adversarial boundary tests and Playwright headless UI testing. |
+| Check | Result |
+|-------|--------|
+| Python test suite | **66 passed, 1 skipped** (Playwright skips when Chromium is unavailable) |
+| Next.js production build | **Passing** |
+| FastAPI startup + `/health` | **Passing** |
+| Scenario endpoint (real data) | **Working** — fetches real price history via Yahoo Finance; reports `DATA_UNAVAILABLE` when unreachable |
+| Database | **Not configured** in this environment — degrades to `DATABASE_UNAVAILABLE` |
+| Gemini | **Not configured** — deterministic rule engine active |
+| Upstox | **Not configured** — free provider active |
+| Telegram | **Not configured** |
 
 ---
 
-## 2. Audit Verification Verdict
+## 2. Subsystem Classification
 
-**Final Audit Classification: 100% REAL**
-- Zero MOCK subsystems in production paths.
-- Zero BROKEN modules or failed test assertions.
-- Complete local fallback resilience when external cloud providers (Gemini, Upstox, Telegram, PostgreSQL) are unconfigured or offline.
-- Production-ready for immediate local deployment via `.\scripts\start.ps1`.
+| Subsystem | Classification | Notes |
+|-----------|----------------|-------|
+| FastAPI core + 22 routers | REAL | Starts cleanly; health, scenario, search, research, models, macro endpoints verified |
+| Next.js terminal (18 workspaces) | REAL | Production build passes; single-page dense terminal |
+| PostgreSQL/pgvector schema (`db/init.sql`) | REAL | Schema present; not exercised in this environment (no DB) |
+| Dynamic NSE+BSE universe | REAL | `services/collector/universe_manager.py`; ISIN dedup verified by tests |
+| Document extraction (PyMuPDF, SHA-256, pages) | REAL | Verified by `test_pipeline_e2e.py` |
+| Event taxonomy + materiality | REAL | SEBI LODR triage; verified by tests |
+| Technical engine (SMA/EMA/RSI/MACD/ATR/BB/VWAP) | REAL | Deterministic; verified by `test_technical.py` |
+| Forecasting (Chronos-2 adapter + local fallback) | REAL | Neural path optional; local heavy-tailed fallback always available |
+| Probability engine (Brier/ECE/isotonic) | REAL | Fitted only on real holdouts; `INSUFFICIENT` until then |
+| Scenario engine (5 tiers) | REAL | Derived from forecast distribution |
+| Capital/cost engine (whole shares, statutory costs) | REAL | Verified by adversarial + scenario tests |
+| Walk-forward validation | REAL | `simulation/walk_forward.py`; verified by tests |
+| Anti-leakage | REAL | Future candle/announcement/financial/action rejected; verified by tests |
+| Upstox V2 provider | REAL (unconfigured) | Read-only adapter; not smoke-tested (no credentials) |
+| Gemini provider | REAL (unconfigured) | Structured output + tool calling; not smoke-tested (no key) |
+| Telegram alerts | REAL (unconfigured) | Dedup + non-advisory; verified by tests |
+| MCP server | REAL | Read-only research tools |
+| System doctor / smoke test / launcher | REAL | `scripts/doctor.py`, `scripts/smoke_test.py`, `scripts/start.ps1` |
+
+---
+
+## 3. Issues Found and Fixed
+
+The following fabricated-data paths were present and have been removed:
+
+1. **Scenario orchestrator fabricated price history** (`base_px_map` + seeded synthetic series) when no prices were supplied. **Fixed:** the orchestrator now requires ≥5 real price observations and raises `DATA_UNAVAILABLE` otherwise.
+2. **Calibration engine seeded with synthetic data** to produce an out-of-the-box "GOOD" rating. **Fixed:** the calibrator starts unfitted; empty evaluation returns `INSUFFICIENT` with `None` metrics.
+3. **Ensemble fabricated a calibration evaluation** from 3 synthetic "actual outcomes". **Fixed:** reports `INSUFFICIENT` until real holdouts exist.
+4. **Risk engine returned hardcoded risk metrics** for short return series. **Fixed:** returns `INSUFFICIENT_DATA` with `None` metrics.
+5. **TimesFM returned a hardcoded `confidence_score: 0.88`.** **Fixed:** removed.
+6. **Scenario router hardcoded portfolio prices / synthetic returns and hardcoded sector statistics.** **Fixed:** portfolio optimization now uses real price history; sector aggregates report `UNAVAILABLE`.
+7. **Health router fabricated activity counters when the DB was offline.** **Fixed:** returns zero/unknown counters with `db_status: offline_resilient`.
+8. **Gemini structured output set `responseMimeType` but no JSON schema.** **Fixed:** now passes a `responseSchema` derived from the Pydantic model.
+
+---
+
+## 4. Remaining Limitations (honest)
+
+- **Database-dependent workspaces** (search, research, watchlist, portfolio, source health) require PostgreSQL + pgvector; they return `DATABASE_UNAVAILABLE` without it.
+- **Calibration** is `INSUFFICIENT` until real out-of-sample holdouts are persisted (there is no persisted evaluation dataset in this deployment).
+- **All models are `EXPERIMENTAL`** in the registry until they pass gating on real holdouts.
+- **Gemini / Upstox / Telegram** are not configured here; real-service smoke tests report `NOT CONFIGURED`, not `PASSED`.
+- **Chronos-2 / TimesFM neural paths** require optional weights; the local statistical fallback runs otherwise.
+- **Playwright UI test** requires Chromium system libraries; it skips gracefully when unavailable.
+
+---
+
+## 5. Verdict
+
+The terminal is a real, working, local-first research system with honest degradation. The fabricated-data paths that would have misled a user (fake prices, fake calibration, fake confidence, fake metrics) have been removed. External-service integrations are correctly gated behind configuration and report `NOT CONFIGURED` rather than false passes.

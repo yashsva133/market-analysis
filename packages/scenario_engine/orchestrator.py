@@ -69,73 +69,15 @@ class ScenarioOrchestrator:
         sym = symbol.upper()
         now = datetime.now(timezone.utc)
 
-        # 1. Price Context & Baseline Fallbacks
+        # 1. Price Context — REQUIRE real historical prices.
+        # The scenario engine must never fabricate a price series. If fewer than 5
+        # real observations are supplied, the analysis is refused with a clear
+        # DATA_UNAVAILABLE error rather than substituting synthetic prices.
         if not prices or len(prices) < 5:
-            # Grounded benchmark reference prices across major Indian equities
-            base_px_map = {
-                "BHARTIARTL": 1893.30,
-                "ASAHIINDIA": 685.40,
-                "AIGL": 685.40,
-                "LT": 3712.45,
-                "RELIANCE": 3021.23,
-                "TCS": 4250.0,
-                "INFY": 1885.0,
-                "HDFCBANK": 1640.0,
-                "ICICIBANK": 1220.0,
-                "SBIN": 810.0,
-                "TATAMOTORS": 980.0,
-                "ITC": 490.0,
-                "HINDUNILVR": 2720.0,
-                "BAJFINANCE": 7150.0,
-                "KOTAKBANK": 1790.0,
-                "MARUTI": 12400.0,
-                "AXISBANK": 1230.0,
-                "SUNPHARMA": 1810.0,
-                "TITAN": 3550.0,
-                "NTPC": 420.0,
-                "ONGC": 295.0,
-                "POWERGRID": 340.0,
-                "ADANIENT": 3050.0,
-                "ADANIPORTS": 1440.0,
-                "TATASTEEL": 155.0,
-                "ULTRACEMCO": 11400.0,
-                "M&M": 3020.0,
-                "COALINDIA": 505.0,
-                "BAJAJFINSV": 1920.0,
-                "ASIANPAINT": 2920.0,
-                "HCLTECH": 1810.0,
-                "WIPRO": 545.0,
-                "TECHM": 1690.0,
-                "NESTLEIND": 2490.0,
-                "GRASIM": 2720.0,
-                "JSWSTEEL": 965.0,
-                "ZOMATO": 280.40,
-                "JIOFIN": 342.10,
-                "TRENT": 7380.0,
-                "SUZLON": 78.50,
-                "NIFTYBEES": 266.5,
-                "CUPID": 265.0,
-            }
-            p_base = base_px_map.get(sym)
-            if p_base is None:
-                try:
-                    import yfinance as yf
-                    ticker_name = f"{sym}.NS"
-                    t = yf.Ticker(ticker_name)
-                    px = float(t.fast_info.last_price or 0.0)
-                    if px > 0:
-                        p_base = px
-                except Exception:
-                    pass
-
-            if p_base is None:
-                seed = sum(ord(c) for c in sym)
-                p_base = 350.0 + (seed % 1500)
-
-            prices = [
-                round(p_base * (1.0 + (i - 20) * 0.002 + (hash(f"{sym}_{i}") % 60 - 30) * 0.0003), 2)
-                for i in range(40)
-            ]
+            raise ValueError(
+                "DATA_UNAVAILABLE: insufficient real price history for scenario analysis. "
+                "Provide at least 5 historical price observations; no synthetic price series is generated."
+            )
 
         current_price = float(prices[-1])
         if target_price is None or target_price <= 0:
@@ -209,9 +151,12 @@ class ScenarioOrchestrator:
         stress_tests = RiskEngine.run_stress_tests(current_price)
 
         # 8. Comparable Events (§37, §38)
+        # Only real ingested historical events are used; no fabricated event
+        # database is substituted when none match.
         comparables = ComparableEventEngine.find_comparables(
             event_type="ORDER_WIN" if "CAPITAL" in (sector_name or "").upper() else "RESULTS_BEAT",
             sector=sector_name,
+            events=events,
         )
 
         # 9. Data Quality Assessment (§124)

@@ -62,18 +62,45 @@ class TimesFMForecastModel:
         p = np.array(prices, dtype=float)
         current_price = float(p[-1])
 
-        # 1. Native TimesFM if package and checkpoints are installed
+        # 1. Native TimesFM if package and checkpoints are installed.
+        # Quantiles are taken from the model's actual quantile output; no
+        # quantile is fabricated by scaling the median.
         if self.pipeline is not None and not self.is_fallback:
             try:
-                import torch
                 # Call TimesFM predict
                 forecast_mean, forecast_quantiles = self.pipeline.forecast(
                     [p],
                     freq=[0],
                 )
-                # Extract predictions
                 q50_series = forecast_mean[0][:horizon_days]
                 final_median = float(q50_series[-1])
+
+                # Map model quantiles to our keys where available.
+                def _pick(qmap, keys):
+                    if not isinstance(qmap, dict):
+                        return None
+                    for k in keys:
+                        arr = qmap.get(k)
+                        if arr is not None and len(arr) > 0:
+                            return float(arr[0][:horizon_days][-1])
+                    return None
+
+                quantiles = {
+                    "q10": _pick(forecast_quantiles, [0.1, "0.1"]),
+                    "q25": _pick(forecast_quantiles, [0.25, "0.25"]),
+                    "q40": _pick(forecast_quantiles, [0.4, "0.4"]),
+                    "q50": _pick(forecast_quantiles, [0.5, "0.5"]),
+                    "q60": _pick(forecast_quantiles, [0.6, "0.6"]),
+                    "q75": _pick(forecast_quantiles, [0.75, "0.75"]),
+                    "q90": _pick(forecast_quantiles, [0.9, "0.9"]),
+                    "q95": _pick(forecast_quantiles, [0.95, "0.95"]),
+                }
+                # Fall back to the point median only for q50 (a real model output),
+                # never for the tail quantiles.
+                if quantiles["q50"] is None:
+                    quantiles["q50"] = round(final_median, 2)
+                quantiles = {k: (round(v, 2) if v is not None else None) for k, v in quantiles.items()}
+
                 drift = (final_median - current_price) / current_price
 
                 return {
@@ -81,16 +108,7 @@ class TimesFMForecastModel:
                     "provider": "Google Research",
                     "device": self.device,
                     "is_fallback": False,
-                    "quantiles": {
-                        "q10": round(float(final_median * 0.90), 2),
-                        "q25": round(float(final_median * 0.95), 2),
-                        "q40": round(float(final_median * 0.98), 2),
-                        "q50": round(float(final_median), 2),
-                        "q60": round(float(final_median * 1.02), 2),
-                        "q75": round(float(final_median * 1.06), 2),
-                        "q90": round(float(final_median * 1.12), 2),
-                        "q95": round(float(final_median * 1.16), 2),
-                    },
+                    "quantiles": quantiles,
                     "horizon_days": horizon_days,
                     "directional_bias": "BULLISH" if drift > 0.02 else ("BEARISH" if drift < -0.02 else "NEUTRAL"),
                 }
@@ -187,5 +205,4 @@ class TimesFMForecastModel:
             "drift_pct": drift_pct,
             "bandwidth_pct": bandwidth_pct,
             "directional_bias": "BULLISH" if drift_pct > 2.0 else ("BEARISH" if drift_pct < -2.0 else "NEUTRAL"),
-            "confidence_score": 0.88,
         }

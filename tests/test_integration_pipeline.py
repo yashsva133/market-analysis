@@ -4,8 +4,12 @@ from packages.scenario_engine.orchestrator import ScenarioOrchestrator
 
 
 def test_full_scenario_pipeline_e2e():
-    """Verify complete 22-step pipeline execution from input parameters through calibrated forecast to capital simulation."""
+    """Verify complete pipeline execution from real price input through forecast to capital simulation."""
     orchestrator = ScenarioOrchestrator()
+
+    # Realistic historical price series (explicit test input — the engine must
+    # never fabricate its own price series).
+    prices = [3000.0 + i * 2.5 + (i % 7) * 1.2 for i in range(120)]
 
     # Exact user scenario from prompt: Analyze RELIANCE with ₹500 for 3 months (63 trading days) and target ₹1,600
     res = orchestrator.run_full_scenario_analysis(
@@ -13,6 +17,7 @@ def test_full_scenario_pipeline_e2e():
         capital_inr=500.0,
         horizon_days=63,
         target_price=1600.0,
+        prices=prices,
     )
 
     # 1. Pipeline execution status and run identity
@@ -28,8 +33,10 @@ def test_full_scenario_pipeline_e2e():
     assert "model_metadata" in res
     assert len(res["model_metadata"]["ensemble_models"]) >= 2
     assert "calibration_status" in res["model_metadata"]
-    assert res["model_metadata"]["calibration_status"] in ["GOOD", "ACCEPTABLE"]
-    assert 0.0 <= res["model_metadata"]["brier_score"] <= 1.0
+    # No persisted out-of-sample holdout exists in this deployment, so calibration
+    # must be reported as INSUFFICIENT — never fabricated as GOOD.
+    assert res["model_metadata"]["calibration_status"] == "INSUFFICIENT"
+    assert res["model_metadata"]["brier_score"] is None
 
     # 4. Indian Whole Shares Execution Position
     pos = res["execution_position"]

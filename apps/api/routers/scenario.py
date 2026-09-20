@@ -13,6 +13,7 @@ Implements Section 83 endpoints:
 - GET /api/sectors & GET /sectors
 """
 from typing import Dict, Any, List, Optional, Union
+import asyncio
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -27,6 +28,42 @@ router = APIRouter(tags=["scenario"])
 
 # In-memory session cache for persistent scenario run retrieval
 _scenario_runs_cache: Dict[str, Dict[str, Any]] = {}
+
+
+async def _fetch_price_history(symbol: str, period: str = "1y") -> Optional[List[float]]:
+    """Fetch real historical daily close prices for an NSE symbol via Yahoo Finance.
+
+    Returns None when the feed is unreachable or the symbol is invalid — the
+    scenario engine never fabricates a price series.
+    """
+    clean = symbol.upper().replace("&", "").strip()
+    ticker = f"{clean}.NS"
+    try:
+        import yfinance as yf
+        loop = asyncio.get_running_loop()
+
+        def fetch():
+            t = yf.Ticker(ticker)
+            hist = t.history(period=period, interval="1d")
+            closes = [float(x) for x in hist["Close"].tolist() if x is not None and float(x) > 0]
+            return closes
+
+        closes = await asyncio.wait_for(loop.run_in_executor(None, fetch), timeout=12.0)
+        if closes and len(closes) >= 5:
+            return closes
+    except Exception:
+        pass
+    return None
+
+
+def _data_unavailable_response(symbol: str) -> Dict[str, Any]:
+    """Structured degraded response when no real price history is available."""
+    return {
+        "status": "DATA_UNAVAILABLE",
+        "symbol": symbol.upper(),
+        "message": "No real price history is available for this symbol. The scenario engine does not fabricate prices or forecasts.",
+        "fallback": "Provide a valid NSE/BSE symbol and retry when market data is reachable.",
+    }
 
 
 def resolve_horizon_days(horizon_days: Optional[int], horizon: Optional[Any]) -> int:
@@ -85,17 +122,27 @@ class PortfolioOptimizeRequest(BaseModel):
 @router.post("/scenario/analyze")
 @router.post("/api/scenario/analyze")
 async def analyze_scenario(req: ScenarioAnalyzeRequest):
-    """Run full 22-step scenario analysis, forecasting, probability calibration, and capital simulation."""
+    """Run full scenario analysis, forecasting, probability calibration, and capital simulation."""
     days = resolve_horizon_days(req.horizon_days, req.horizon)
     stop_p = req.stop_price if req.stop_price is not None else req.stop_loss
-    res = global_scenario_orchestrator.run_full_scenario_analysis(
-        symbol=req.symbol,
-        capital_inr=req.capital,
-        horizon_days=days,
-        target_price=req.target_price,
-        stop_price=stop_p,
-        sector_name=req.sector,
-    )
+
+    prices = await _fetch_price_history(req.symbol)
+    if not prices:
+        return _data_unavailable_response(req.symbol)
+
+    try:
+        res = global_scenario_orchestrator.run_full_scenario_analysis(
+            symbol=req.symbol,
+            capital_inr=req.capital,
+            horizon_days=days,
+            target_price=req.target_price,
+            stop_price=stop_p,
+            sector_name=req.sector,
+            prices=prices,
+        )
+    except ValueError as exc:
+        return _data_unavailable_response(req.symbol)
+
     _scenario_runs_cache[res["scenario_run_id"]] = res
     return res
 
@@ -106,6 +153,9 @@ async def evaluate_council(req: ScenarioAnalyzeRequest):
     """Run Multi-Agent Decision Council deliberation (4 Specialist Agents + Council Chief)."""
     days = resolve_horizon_days(req.horizon_days, req.horizon)
     stop_p = req.stop_price if req.stop_price is not None else req.stop_loss
+    prices = await _fetch_price_history(req.symbol)
+    if not prices:
+        return _data_unavailable_response(req.symbol)
     res = global_scenario_orchestrator.run_full_scenario_analysis(
         symbol=req.symbol,
         capital_inr=req.capital,
@@ -113,6 +163,7 @@ async def evaluate_council(req: ScenarioAnalyzeRequest):
         target_price=req.target_price,
         stop_price=stop_p,
         sector_name=req.sector,
+        prices=prices,
     )
     _scenario_runs_cache[res["scenario_run_id"]] = res
     return {
@@ -129,10 +180,14 @@ async def evaluate_council(req: ScenarioAnalyzeRequest):
 async def compare_forecasting_models(req: ScenarioAnalyzeRequest):
     """Head-to-head comparison: Amazon Chronos-2 vs Google TimesFM 3.0 vs Tabular ML."""
     days = resolve_horizon_days(req.horizon_days, req.horizon)
+    prices = await _fetch_price_history(req.symbol)
+    if not prices:
+        return _data_unavailable_response(req.symbol)
     res = global_scenario_orchestrator.run_full_scenario_analysis(
         symbol=req.symbol,
         horizon_days=days,
         target_price=req.target_price,
+        prices=prices,
     )
     return {
         "status": "ok",
@@ -165,7 +220,11 @@ async def batch_scenario(symbols: List[str] = Query(default=["RELIANCE", "LT", "
     """Run batch scenario analysis across multiple symbols."""
     results = []
     for s in symbols[:5]:
-        res = global_scenario_orchestrator.run_full_scenario_analysis(symbol=s)
+        prices = await _fetch_price_history(s)
+        if not prices:
+            results.append({"symbol": s, "status": "DATA_UNAVAILABLE"})
+            continue
+        res = global_scenario_orchestrator.run_full_scenario_analysis(symbol=s, prices=prices)
         _scenario_runs_cache[res["scenario_run_id"]] = res
         results.append({
             "symbol": s,
@@ -181,9 +240,13 @@ async def batch_scenario(symbols: List[str] = Query(default=["RELIANCE", "LT", "
 @router.get("/api/forecast/{security_id}")
 async def get_security_forecast(security_id: str, horizon: int = Query(default=20, ge=1, le=252)):
     """Get multi-step forecast distribution and fan chart for security."""
+    prices = await _fetch_price_history(security_id)
+    if not prices:
+        return _data_unavailable_response(security_id)
     res = global_scenario_orchestrator.run_full_scenario_analysis(
         symbol=security_id,
         horizon_days=horizon,
+        prices=prices,
     )
     return {
         "symbol": security_id.upper(),
@@ -203,10 +266,14 @@ async def get_security_probabilities(
     horizon: int = Query(default=20),
 ):
     """Retrieve calibrated target touch, finish above, and downside probabilities."""
+    prices = await _fetch_price_history(security_id)
+    if not prices:
+        return _data_unavailable_response(security_id)
     res = global_scenario_orchestrator.run_full_scenario_analysis(
         symbol=security_id,
         target_price=target,
         horizon_days=horizon,
+        prices=prices,
     )
     return {
         "symbol": security_id.upper(),
@@ -222,11 +289,15 @@ async def get_security_probabilities(
 @router.post("/api/capital/simulate")
 async def simulate_capital(req: CapitalSimulateRequest):
     """Execute whole-share Indian equity capital simulation."""
+    prices = await _fetch_price_history(req.symbol)
+    if not prices:
+        return _data_unavailable_response(req.symbol)
     res = global_scenario_orchestrator.run_full_scenario_analysis(
         symbol=req.symbol,
         capital_inr=req.capital,
         target_price=req.target_price,
         horizon_days=req.horizon_days,
+        prices=prices,
     )
     return {
         "execution": res["execution_position"],
@@ -239,30 +310,38 @@ async def simulate_capital(req: CapitalSimulateRequest):
 @router.post("/portfolio/optimize")
 @router.post("/api/portfolio/optimize")
 async def optimize_portfolio(req: PortfolioOptimizeRequest):
-    """Run deterministic portfolio optimization (Equal Weight, Risk Parity, Min Variance, etc.)."""
-    ref_prices = {
-        "LT": 3620.0, "RELIANCE": 2925.0, "TCS": 4090.0, "INFY": 1880.0,
-        "HDFCBANK": 1640.0, "TATAMOTORS": 980.0, "NIFTYBEES": 266.5, "CUPID": 265.0,
-    }
-    sectors = {
-        "LT": "Capital Goods", "RELIANCE": "Oil & Gas", "TCS": "IT",
-        "INFY": "IT", "HDFCBANK": "Banking", "TATAMOTORS": "Automobile",
-    }
-    px = {s: ref_prices.get(s, 500.0) for s in req.symbols}
-    rets = {
-        s: [0.001 * ((hash(f"{s}_{i}") % 10) - 4) for i in range(30)]
-        for s in req.symbols
-    }
+    """Run deterministic portfolio optimization (Equal Weight, Risk Parity, Min Variance, etc.).
+
+    Prices and returns are derived from real historical data; no hardcoded or
+    synthetic price/return series is substituted.
+    """
+    px: Dict[str, float] = {}
+    rets: Dict[str, List[float]] = {}
+    for s in req.symbols:
+        closes = await _fetch_price_history(s)
+        if not closes:
+            continue
+        px[s] = closes[-1]
+        rets[s] = [
+            (closes[i] - closes[i - 1]) / closes[i - 1]
+            for i in range(1, len(closes))
+        ]
+
+    if not px:
+        return {
+            "status": "DATA_UNAVAILABLE",
+            "message": "No real price history available for the requested symbols. Portfolio optimization requires real market data.",
+        }
 
     result = CapitalAllocationEngine.optimize(
-        symbols=req.symbols,
+        symbols=list(px.keys()),
         prices=px,
         historical_returns=rets,
         capital=req.capital,
         method=req.method,
         max_single_weight=req.max_single_weight,
         min_cash_pct=req.min_cash_pct,
-        sectors=sectors,
+        sectors=None,
     )
     return result
 
@@ -288,15 +367,13 @@ async def get_quant_backtests():
 @router.get("/sectors")
 @router.get("/api/sectors")
 async def get_sectors():
-    """Retrieve performance, event intensity, and valuation across all major Indian sectors."""
+    """Retrieve performance, event intensity, and valuation across major Indian sectors.
+
+    Sector-level aggregates are not persisted in this deployment, so no
+    hardcoded sector statistics are served.
+    """
     return {
-        "status": "ok",
-        "sectors": [
-            {"sector": "CAPITAL GOODS", "return_20d": 4.20, "pe_median": 36.5, "event_intensity": 2.1, "trend": "BULLISH"},
-            {"sector": "IT", "return_20d": 2.40, "pe_median": 28.2, "event_intensity": 1.2, "trend": "NEUTRAL"},
-            {"sector": "BANKING", "return_20d": 3.10, "pe_median": 18.4, "event_intensity": 1.4, "trend": "BULLISH"},
-            {"sector": "OIL & GAS", "return_20d": 1.10, "pe_median": 14.8, "event_intensity": 1.5, "trend": "NEUTRAL"},
-            {"sector": "AUTOMOBILE", "return_20d": 1.90, "pe_median": 24.1, "event_intensity": 1.1, "trend": "NEUTRAL"},
-            {"sector": "PHARMACEUTICALS", "return_20d": 2.80, "pe_median": 31.0, "event_intensity": 1.0, "trend": "BULLISH"},
-        ],
+        "status": "UNAVAILABLE",
+        "sectors": [],
+        "note": "Sector-level aggregates are not persisted in this deployment. No hardcoded sector statistics are served.",
     }

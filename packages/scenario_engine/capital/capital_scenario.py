@@ -126,11 +126,18 @@ class CapitalScenarioEngine:
             }
 
         q = forecast_distribution
-        q10 = q.get("q10", current_price * 0.92)
-        q25 = q.get("q25", q10 * 1.04)
-        q50 = q.get("q50", current_price)
-        q75 = q.get("q75", q50 * 1.06)
-        q90 = q.get("q90", current_price * 1.10)
+        required_quantiles = ("q10", "q25", "q50", "q75", "q90")
+        missing = [k for k in required_quantiles if q.get(k) is None]
+        if missing:
+            raise ValueError(
+                "DATA_UNAVAILABLE: forecast distribution is missing quantiles "
+                f"{missing}. No synthetic quantile is substituted for capital simulation."
+            )
+        q10 = q["q10"]
+        q25 = q["q25"]
+        q50 = q["q50"]
+        q75 = q["q75"]
+        q90 = q["q90"]
 
         cap_q10 = calc_cap_val(q10)
         cap_q25 = calc_cap_val(q25)

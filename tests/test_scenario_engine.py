@@ -10,7 +10,7 @@ def test_scenario_generation_five_tiers():
     """Verify 5 distinct scenario tiers are generated with valid price/return/probability structure."""
     scenarios = ScenarioEngine.generate_scenarios(
         current_price=3000.0,
-        forecast_distribution={"q05": 2400.0, "q10": 2550.0, "q25": 2800.0, "q50": 3050.0, "q75": 3300.0, "q90": 3600.0, "q95": 3850.0},
+        forecast_distribution={"q05": 2400.0, "q10": 2550.0, "q25": 2800.0, "q40": 2950.0, "q50": 3050.0, "q60": 3150.0, "q75": 3300.0, "q90": 3600.0, "q95": 3850.0},
         features={"india_vix": 13.5, "rsi_14": 55.0},
         horizon_days=63,
     )
@@ -40,7 +40,7 @@ def test_insufficient_capital_flag():
         capital=500.0,
         horizon_days=63,
         target_price=1600.0,
-        forecast_distribution={"q10": 2800.0, "q50": 3100.0, "q90": 3500.0},
+        forecast_distribution={"q10": 2800.0, "q25": 2950.0, "q50": 3100.0, "q75": 3300.0, "q90": 3500.0},
         probabilities={"calibrated_p_target_touched": 0.58},
         scenarios={},
     )
@@ -63,7 +63,7 @@ def test_sufficient_capital_whole_shares():
         capital=10000.0,
         horizon_days=63,
         target_price=3200.0,
-        forecast_distribution={"q10": 2800.0, "q50": 3100.0, "q90": 3500.0},
+        forecast_distribution={"q10": 2800.0, "q25": 2950.0, "q50": 3100.0, "q75": 3300.0, "q90": 3500.0},
         probabilities={"calibrated_p_target_touched": 0.58},
         scenarios={},
     )
@@ -116,10 +116,13 @@ def test_timesfm_forecast_quantiles():
 
 
 def test_multi_agent_decision_council():
-    """Verify MultiAgentDecisionCouncil evaluates 4 specialist agents and generates consensus."""
+    """Verify the council produces a factual, non-advisory review with real model comparison.
+
+    No fabricated conviction score, disagreement index, or buy/sell verdict is emitted.
+    """
     from packages.scenario_engine.council.decision_council import MultiAgentDecisionCouncil
     council = MultiAgentDecisionCouncil()
-    
+
     res = council.evaluate(
         symbol="RELIANCE",
         current_price=3000.0,
@@ -135,27 +138,70 @@ def test_multi_agent_decision_council():
             "model_name": "google/timesfm-3.0-500m",
             "quantiles": {"q10": 2780.0, "q25": 2920.0, "q50": 3160.0, "q75": 3340.0, "q90": 3520.0},
         },
-        features={"rsi_14": 48.5, "india_vix": 13.8, "pct_above_50dma": 2.1},
-        financial_snapshot={"pe": 26.5, "roce": 15.2, "promoter_pledge_pct": 0.0},
+        features={
+            "rsi_14": 48.5,
+            "india_vix": 13.8,
+            "pct_above_50dma": 2.1,
+            "pe_ratio": 26.5,
+            "roce_pct": 15.2,
+            "debt_to_equity": 0.4,
+            "revenue_growth_yoy": 12.0,
+            "promoter_pledge_pct": 0.0,
+        },
+        events=[{"event_type": "ORDER_WIN", "sector": "CAPITAL GOODS"}],
         capital_execution={"executable_whole_shares": 16, "is_insufficient_capital": False},
     )
-    
+
     d = res.to_dict()
     assert d["symbol"] == "RELIANCE"
-    assert d["consensus_verdict"] in [
-        "STRONG_ACCUMULATE", "MODERATE_ACCUMULATE", "NEUTRAL_HOLD", "CAUTIOUS_REDUCE", "AVOID"
-    ]
-    assert 0.0 <= d["conviction_score"] <= 100.0
-    assert 0.0 <= d["disagreement_index"] <= 1.0
+    # Non-advisory verdict only; never a buy/sell/accumulate recommendation.
+    assert d["consensus_verdict"] in ["DATA_REVIEW", "INSUFFICIENT_DATA"]
+    # No fabricated conviction or disagreement scores.
+    assert d["conviction_score"] is None
+    assert d["disagreement_index"] is None
     assert len(d["agent_deliberations"]) == 4
     agent_ids = [a["agent_id"] for a in d["agent_deliberations"]]
     assert "agent_quant_ts" in agent_ids
     assert "agent_fundamental" in agent_ids
     assert "agent_regulatory" in agent_ids
     assert "agent_risk_officer" in agent_ids
+    # No agent may carry a fabricated conviction percentage.
+    for a in d["agent_deliberations"]:
+        assert a["conviction_pct"] is None
     assert len(d["invalidation_triggers"]) > 0
     assert "model_comparison" in d
     assert "chronos_2" in d["model_comparison"]
     assert "timesfm_3" in d["model_comparison"]
     assert "consensus" in d["model_comparison"]
+    # Real model quantiles flow through unchanged.
+    assert d["model_comparison"]["chronos_2"]["median_q50"] == 3150.0
+    assert d["model_comparison"]["timesfm_3"]["median_q50"] == 3160.0
+
+
+def test_decision_council_insufficient_data_when_models_missing():
+    """Verify the council reports INSUFFICIENT_DATA rather than fabricating quantiles."""
+    from packages.scenario_engine.council.decision_council import MultiAgentDecisionCouncil
+    council = MultiAgentDecisionCouncil()
+
+    res = council.evaluate(
+        symbol="RELIANCE",
+        current_price=3000.0,
+        target_price=3300.0,
+        stop_price=2800.0,
+        capital=50000.0,
+        horizon_days=63,
+        chronos_forecast={},
+        timesfm_forecast={},
+        features={},
+        events=None,
+        capital_execution={},
+    )
+
+    d = res.to_dict()
+    assert d["consensus_verdict"] == "INSUFFICIENT_DATA"
+    assert d["conviction_score"] is None
+    # Model comparison must not fabricate medians/drifts when models are absent.
+    assert d["model_comparison"]["chronos_2"]["median_q50"] is None
+    assert d["model_comparison"]["timesfm_3"]["median_q50"] is None
+    assert d["model_comparison"]["consensus"]["model_agreement_pct"] is None
 

@@ -184,42 +184,25 @@ export default function TerminalHome() {
   // Research Desk state
   const [researchQuery, setResearchQuery] = useState("What are the key order wins and capex developments in the last 6 months?");
   const [researchOutput, setResearchOutput] = useState<any>(null);
+  const [researchError, setResearchError] = useState<string | null>(null);
   const [isResearching, setIsResearching] = useState(false);
 
   // Watchlist state
-  const [watchlistItems, setWatchlistItems] = useState<any[]>([
-    { id: "w-1", symbol: "RELIANCE", name: "Reliance Industries Limited", is_muted: false, added_at: "Today" },
-    { id: "w-2", symbol: "LT", name: "Larsen & Toubro Limited", is_muted: false, added_at: "Today" },
-    { id: "w-3", symbol: "TCS", name: "Tata Consultancy Services Limited", is_muted: true, added_at: "Yesterday" },
-  ]);
+  const [watchlistItems, setWatchlistItems] = useState<any[]>([]);
   const [newWatchSymbol, setNewWatchSymbol] = useState("");
 
   // Portfolio state
-  const [portfolioStatus, setPortfolioStatus] = useState<any>({
-    enabled: true,
-    is_authenticated: true,
-    user_id: "86BCDQ",
-    message: "Upstox Market Feed V3 Connected (Active Read-Only Session)",
-  });
-  const [portfolioHoldings, setPortfolioHoldings] = useState<any[]>([
-    { symbol: "RELIANCE", company_name: "Reliance Industries Ltd", quantity: 15, average_price: 2940.0, last_price: 3021.23, invested_value: 44100.0, current_value: 45318.45, pnl: 1218.45, pnl_pct: 2.76 },
-    { symbol: "LT", company_name: "Larsen & Toubro Ltd", quantity: 8, average_price: 3550.0, last_price: 3712.45, invested_value: 28400.0, current_value: 29699.6, pnl: 1299.6, pnl_pct: 4.58 },
-    { symbol: "TCS", company_name: "Tata Consultancy Services", quantity: 5, average_price: 4180.0, last_price: 4250.0, invested_value: 20900.0, current_value: 21250.0, pnl: 350.0, pnl_pct: 1.67 },
-  ]);
-  const [portfolioTotals, setPortfolioTotals] = useState<any>({
-    total_invested: 93400.0,
-    total_current_value: 96268.05,
-    total_pnl: 2868.05,
-    total_pnl_pct: 3.07,
-  });
+  const [portfolioStatus, setPortfolioStatus] = useState<any>(null);
+  const [portfolioHoldings, setPortfolioHoldings] = useState<any[]>([]);
+  const [portfolioTotals, setPortfolioTotals] = useState<any>(null);
 
   // AI Capital Analyst & Scenario State
   const [scenarioSymbol, setScenarioSymbol] = useState("RELIANCE");
   const [scenarioCapital, setScenarioCapital] = useState(500.0);
   const [scenarioHorizon, setScenarioHorizon] = useState("3M");
-  const [scenarioTargetPrice, setScenarioTargetPrice] = useState(1600.0);
-  const [scenarioStopLoss, setScenarioStopLoss] = useState(2700.0);
-  const [scenarioBenchmark, setScenarioBenchmark] = useState("NIFTY 50");
+  const [scenarioTargetPrice, setScenarioTargetPrice] = useState<number | null>(null);
+  const [scenarioStopLoss, setScenarioStopLoss] = useState<number | null>(null);
+  const [scenarioBenchmark, setScenarioBenchmark] = useState("");
   const [scenarioResult, setScenarioResult] = useState<any>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
@@ -232,7 +215,7 @@ export default function TerminalHome() {
     unchanged: null,
     advance_decline_ratio: null,
     market_regime: null,
-    benchmark_index: "NIFTY 500",
+    benchmark_index: null,
     index_last: null,
     index_change_pct: null,
   });
@@ -256,17 +239,17 @@ export default function TerminalHome() {
   const [backtestStrategy, setBacktestStrategy] = useState("ORDER_WIN_MOMENTUM");
   const [backtestPeriod, setBacktestPeriod] = useState("2Y");
   const [backtestResult, setBacktestResult] = useState<any>({
-    strategy: "Order Win Materiality Momentum",
-    universe: "NIFTY 500 (Cleaned)",
-    period: "2 Years (Walk-Forward)",
-    total_trades: 184,
-    win_rate: "67.4%",
-    cagr: "+24.8%",
-    max_drawdown: "-11.2%",
-    sharpe: 1.84,
-    sortino: 2.31,
-    estimated_costs_pct: "0.42% (STT, Brokerage, GST, Slippage)",
-    lookahead_controls: "STRICT POINT-IN-TIME (As-of Joins)",
+    strategy: null,
+    universe: null,
+    period: null,
+    total_trades: null,
+    win_rate: null,
+    cagr: null,
+    max_drawdown: null,
+    sharpe: null,
+    sortino: null,
+    estimated_costs_pct: null,
+    lookahead_controls: null,
   });
 
   // Explorer Data State — zeros until /explorer/summary responds with real counts
@@ -715,15 +698,15 @@ export default function TerminalHome() {
         const data = await res.json();
         setBacktestResult({
           strategy: data.strategy || backtestStrategy,
-          universe: "NIFTY 500 (Point-in-time)",
-          period: `${data.holding_period_days || backtestPeriod} Sessions Holding`,
-          total_trades: data.total_events_tested || 7,
-          win_rate: `${data.win_rate_pct || 85.7}%`,
-          cagr: `+${data.cumulative_net_return_pct || 24.26}%`,
-          max_drawdown: `-${data.max_drawdown_pct || 2.85}%`,
-          sharpe: data.sharpe_ratio || 5.69,
-          sortino: data.sortino_ratio || 6.21,
-          estimated_costs_pct: `${data.transaction_costs_applied_pct || 0.15}% (STT, Brokerage, Slippage)`,
+  universe: data.universe ?? null,
+  period: data.holding_period_days != null ? `${data.holding_period_days} Sessions Holding` : null,
+  total_trades: data.total_events_tested ?? null,
+  win_rate: data.win_rate_pct != null ? `${data.win_rate_pct}%` : null,
+  cagr: data.cumulative_net_return_pct != null ? `${data.cumulative_net_return_pct}%` : null,
+  max_drawdown: data.max_drawdown_pct != null ? `-${data.max_drawdown_pct}%` : null,
+  sharpe: data.sharpe_ratio ?? null,
+  sortino: data.sortino_ratio ?? null,
+  estimated_costs_pct: data.transaction_costs_applied_pct != null ? `${data.transaction_costs_applied_pct}% (STT, Brokerage, Slippage)` : null,
           lookahead_controls: "STRICT POINT-IN-TIME (Zero Future Leakage)",
           last_run_timestamp: new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }),
         });
@@ -818,7 +801,17 @@ export default function TerminalHome() {
 
       if (res && res.ok) {
         const raw = await res.json();
-        const price = raw.inputs?.current_price || (sym === "RELIANCE" ? 3021.23 : sym === "LT" ? 3712.45 : sym === "TCS" ? 4250.0 : 1640.0);
+
+        // The backend reports DATA_UNAVAILABLE when it cannot obtain real price
+        // history. Do NOT fabricate a price or forecast on the client.
+        if (raw?.status === "DATA_UNAVAILABLE") {
+          throw new Error(raw.message || "No real price history available for this symbol.");
+        }
+
+        const price = raw.inputs?.current_price;
+        if (typeof price !== "number" || price <= 0) {
+          throw new Error("Backend returned no valid current price; refusing to fabricate one.");
+        }
         const wholeShares = raw.execution_position?.executable_whole_shares ?? Math.floor(cap / price);
         const isInsufficient = raw.execution_position?.is_insufficient_capital ?? (wholeShares === 0);
         const fractionalShares = typeof raw.execution_position?.theoretical_fractional_exposure === "object"
@@ -831,22 +824,17 @@ export default function TerminalHome() {
           const normKey = sKey.toUpperCase();
           scMap[normKey] = {
             scenario_name: sVal.name || sVal.scenario_name || normKey.replace("_", " "),
-            price_range: sVal.price_range || `₹${(sVal.price_low || price * 0.9).toFixed(2)} – ₹${(sVal.price_high || price * 1.1).toFixed(2)}`,
-            implied_return_pct: sVal.implied_return_pct || `${sVal.return_low_pct !== undefined ? (sVal.return_low_pct > 0 ? "+" : "") + sVal.return_low_pct.toFixed(1) + "%" : ""} to ${sVal.return_high_pct !== undefined ? (sVal.return_high_pct > 0 ? "+" : "") + sVal.return_high_pct.toFixed(1) + "%" : ""}`,
+            price_range: sVal.price_range ?? null,
+            implied_return_pct: sVal.implied_return_pct ?? null,
             probability_mass_pct: typeof sVal.probability_mass_pct === "number" ? `${sVal.probability_mass_pct}%` : sVal.probability_mass_pct,
-            scenario_portfolio_value: sVal.scenario_portfolio_value ?? (wholeShares > 0 ? Number((wholeShares * (sVal.price_median || sVal.price_low || price)).toFixed(2)) : cap),
-            scenario_pnl: sVal.scenario_pnl ?? (wholeShares > 0 ? Number(((wholeShares * (sVal.price_median || sVal.price_low || price)) - (wholeShares * price)).toFixed(2)) : 0),
-            assumptions: sVal.assumptions || ["Operating factors intact"],
-            risks: sVal.risks || sVal.risk_factors || ["Downside macro risk"],
+            scenario_portfolio_value: sVal.scenario_portfolio_value ?? null,
+            scenario_pnl: sVal.scenario_pnl ?? null,
+            assumptions: sVal.assumptions || [],
+            risks: sVal.risks || sVal.risk_factors || [],
           };
         }
 
-        const stressMap = {
-          market_minus_5pct: "-4.2%",
-          market_minus_10pct: "-8.8%",
-          market_minus_20pct: "-17.4%",
-          high_vol_regime: "-6.1%",
-        };
+        const stressMap: Record<string, string> = {};
         if (Array.isArray(raw.stress_tests?.stress_scenarios)) {
           for (const st of raw.stress_tests.stress_scenarios) {
             const shock = st.asset_shock_pct ?? st.portfolio_loss_pct ?? 0;
@@ -860,10 +848,14 @@ export default function TerminalHome() {
 
         const compStats = raw.comparable_events?.statistics || {};
         const compObj = {
-          event_type: raw.comparable_events?.query_event_type || raw.comparable_events?.event_type || "ORDER_WIN",
-          historical_matches: raw.comparable_events?.sample_size ?? raw.comparable_events?.historical_matches ?? 48,
-          median_reaction_pct: compStats.median_return_t_plus_5_pct !== undefined ? `${compStats.median_return_t_plus_5_pct > 0 ? "+" : ""}${compStats.median_return_t_plus_5_pct}%` : raw.comparable_events?.median_reaction_pct || "+4.2%",
-          reaction_range: compStats.min_return_pct !== undefined ? `${compStats.min_return_pct}% to ${compStats.max_return_pct}%` : raw.comparable_events?.reaction_range || "-1.8% to +11.4%",
+          status: raw.comparable_events?.status || null,
+          reason: raw.comparable_events?.reason || null,
+          sample_size: raw.comparable_events?.sample_size ?? null,
+          query_event_type: raw.comparable_events?.query_event_type || null,
+          statistics: {
+            median_5d_reaction_pct: compStats.median_5d_reaction_pct ?? null,
+            median_20d_reaction_pct: compStats.median_20d_reaction_pct ?? null,
+          },
         };
 
         const evPanel = (raw.evidence_panel || []).map((e: any) => ({
@@ -884,40 +876,40 @@ export default function TerminalHome() {
               ? `INSUFFICIENT CAPITAL FOR ONE SHARE (Share price ₹${price.toFixed(2)} exceeds available capital ₹${cap.toFixed(2)})`
               : null,
             current_price: price,
-            cash_remainder: raw.execution_position?.cash_remaining ?? raw.execution_position?.cash_remainder ?? Number((cap - wholeShares * price).toFixed(2)),
-            entry_notional: raw.execution_position?.entry_notional ?? Number((wholeShares * price).toFixed(2)),
-            estimated_costs: raw.execution_position?.estimated_transaction_costs?.total_costs ?? raw.execution_position?.estimated_costs ?? 0,
+            cash_remainder: raw.execution_position?.cash_remaining ?? raw.execution_position?.cash_remainder ?? null,
+            entry_notional: raw.execution_position?.entry_notional ?? null,
+            estimated_costs: raw.execution_position?.estimated_transaction_costs?.total_costs ?? raw.execution_position?.estimated_costs ?? null,
             theoretical_fractional_exposure: fractionalShares,
             is_fractional_executable: false,
           },
           forecast_distribution: {
-            q10: raw.forecast_distribution?.q10 ?? Number((price * 0.91).toFixed(2)),
-            q25: raw.forecast_distribution?.q25 ?? Number((price * 0.96).toFixed(2)),
-            q50: raw.forecast_distribution?.q50 ?? Number((price * 1.03).toFixed(2)),
-            q75: raw.forecast_distribution?.q75 ?? Number((price * 1.11).toFixed(2)),
-            q90: raw.forecast_distribution?.q90 ?? Number((price * 1.22).toFixed(2)),
-            expected_price: raw.forecast_distribution?.expected_price ?? Number((price * 1.04).toFixed(2)),
+            q10: raw.forecast_distribution?.q10 ?? null,
+            q25: raw.forecast_distribution?.q25 ?? null,
+            q50: raw.forecast_distribution?.q50 ?? null,
+            q75: raw.forecast_distribution?.q75 ?? null,
+            q90: raw.forecast_distribution?.q90 ?? null,
+            expected_price: raw.forecast_distribution?.expected_price ?? null,
           },
           target_probabilities: {
-            raw_p_target_touched: raw.target_probabilities?.raw_p_target_touched ?? 0.6,
-            calibrated_p_target_touched: raw.target_probabilities?.calibrated_p_target_touched ?? raw.target_probabilities?.raw_p_target_touched ?? (tgt <= price ? 0.99 : 0.584),
-            raw_p_finish_above: raw.target_probabilities?.raw_p_finish_above ?? 0.44,
-            calibrated_p_finish_above: raw.target_probabilities?.calibrated_p_finish_above ?? raw.target_probabilities?.raw_p_finish_above ?? (tgt <= price ? 0.98 : 0.418),
-            calibrated_p_stop_touched: raw.target_probabilities?.calibrated_p_stop_touched ?? 0.245,
+            raw_p_target_touched: raw.target_probabilities?.raw_p_target_touched ?? null,
+            calibrated_p_target_touched: raw.target_probabilities?.calibrated_p_target_touched ?? raw.target_probabilities?.raw_p_target_touched ?? null,
+            raw_p_finish_above: raw.target_probabilities?.raw_p_finish_above ?? null,
+            calibrated_p_finish_above: raw.target_probabilities?.calibrated_p_finish_above ?? raw.target_probabilities?.raw_p_finish_above ?? null,
+            calibrated_p_stop_touched: raw.target_probabilities?.calibrated_p_stop_touched ?? null,
           },
           downside_probabilities: {
-            p_loss_overall: raw.downside_probabilities?.p_loss_overall ?? 0.473,
-            p_minus_5pct: raw.downside_probabilities?.p_minus_5pct ?? 0.192,
-            p_minus_10pct: raw.downside_probabilities?.p_minus_10pct ?? 0.047,
-            p_minus_20pct: raw.downside_probabilities?.p_minus_20pct ?? 0.001,
+            p_loss_overall: raw.downside_probabilities?.p_loss_overall ?? null,
+            p_minus_5pct: raw.downside_probabilities?.p_minus_5pct ?? null,
+            p_minus_10pct: raw.downside_probabilities?.p_minus_10pct ?? null,
+            p_minus_20pct: raw.downside_probabilities?.p_minus_20pct ?? null,
           },
           scenarios: Object.keys(scMap).length > 0 ? scMap : undefined,
           model_metadata: {
             ensemble_models: ["Amazon Chronos-2 Foundation Model", "HistGradientBoosting Tabular Classifier", "Historical Empirical Baseline"],
-            calibration_status: raw.model_metadata?.calibration || raw.model_metadata?.calibration_status || "GOOD",
-            brier_score: raw.model_metadata?.brier_score ?? 0.082,
-            reliability_error_ece: raw.model_metadata?.expected_calibration_error ?? raw.model_metadata?.reliability_error_ece ?? 0.034,
-            sample_size: raw.data_quality?.sample_size || 4821,
+            calibration_status: raw.model_metadata?.calibration || raw.model_metadata?.calibration_status || null,
+            brier_score: raw.model_metadata?.brier_score ?? null,
+            reliability_error_ece: raw.model_metadata?.expected_calibration_error ?? raw.model_metadata?.reliability_error_ece ?? null,
+            sample_size: raw.data_quality?.sample_size ?? null,
             test_period: "Out-of-sample chronological walk-forward",
           },
           comparable_events: compObj,
@@ -953,6 +945,7 @@ export default function TerminalHome() {
   // Execute Deep Research (Gemini Grounded RAG)
   const handleRunResearch = async () => {
     setIsResearching(true);
+    setResearchError(null);
     try {
       const res = await resilientFetch(
         "/research",
@@ -971,58 +964,21 @@ export default function TerminalHome() {
         const data = await res.json();
         setResearchOutput(data);
       } else {
-        simulateDemoResearch();
+        setResearchOutput(null);
+        setResearchError(
+          "Research synthesis unavailable: the backend could not produce a grounded response for this query. " +
+          "No fabricated research findings are displayed. Verify the backend is running and the symbol exists in the ingested universe."
+        );
       }
     } catch {
-      simulateDemoResearch();
+      setResearchOutput(null);
+      setResearchError(
+        "Research synthesis unavailable: the backend could not produce a grounded response for this query. " +
+        "No fabricated research findings are displayed. Verify the backend is running and the symbol exists in the ingested universe."
+      );
     } finally {
       setIsResearching(false);
     }
-  };
-
-  const simulateDemoResearch = () => {
-    setResearchOutput({
-      company_name: selectedCompany?.name || "Reliance Industries Limited",
-      isin: selectedCompany?.isin || "INE002A01018",
-      timestamp: new Date().toISOString(),
-      business_overview: `${selectedCompany?.name || "Reliance Industries Limited"} operates across refining, petrochemicals, telecom (Jio), retail, and green energy gigafactories.`,
-      recent_changes: `Analysis for query: "${researchQuery}". High-materiality disclosures show commissioning of solar module assembly line and expanded long-term supply agreements.`,
-      latest_financial_performance: "LTM Revenue: ₹9,00,000 Cr | PAT: ₹74,000 Cr | Operating ROCE: 12.4%.",
-      material_corporate_events: [
-        { headline: "Phase-1 solar PV gigafactory unit commissioned under PLI", type: "CAPEX", importance: "HIGH" },
-        { headline: "Expanded 5G enterprise private network pact with major manufacturing port", type: "CONTRACT", importance: "MEDIUM" },
-      ],
-      balance_sheet_risks: "Net debt to EBITDA is comfortable at 1.4x with strong operating cash flows funding current renewable capex tranches.",
-      grounded_findings: [
-        {
-          classification: "FACT",
-          key: "capex_scale",
-          statement: "Solar gigafactory capital expenditure allocation stands at ₹12,000 Cr as verified in exchange disclosures.",
-          evidence_page: 4,
-          confidence: 1.0,
-          source: "Regulation 30 Exchange Disclosure",
-        },
-        {
-          classification: "INFERENCE",
-          key: "pli_margin_uplift",
-          statement: "PLI tranche-II subsidy disbursements are estimated to add 80-110 bps to green energy division EBITDA margins over FY26.",
-          evidence_page: 2,
-          confidence: 0.88,
-          source: "Derived from financial incentive matrix",
-        },
-        {
-          classification: "UNKNOWN",
-          key: "subcontractor_split",
-          statement: "Specific imported polysilicon wafer contract pricing and long-term hedge levels remain undisclosed in public disclosures.",
-          evidence_page: null,
-          confidence: 1.0,
-          source: "Information gap audit",
-        },
-      ],
-      open_questions: ["Ramp-up curve to full 10GW nameplate capacity", "Export allocation share for European markets"],
-      primary_sources: [{ publisher: "NSE/BSE Exchange Disclosures", isin: selectedCompany?.isin || "INE002A01018" }],
-      data_freshness_statement: `Evidence refreshed as of ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} IST.`,
-    });
   };
 
   // Screener Scan — queries the backend screener over the ingested universe
@@ -1600,7 +1556,7 @@ export default function TerminalHome() {
                     {breadth.market_regime || "AWAITING LIVE FEED"}
                   </span>
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    Evidence: {breadth.benchmark_index || "NIFTY 500"} @ {breadth.index_last != null ? `₹${breadth.index_last.toLocaleString()}` : "—"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "—"}, A/D Ratio {breadth.advance_decline_ratio != null ? `${breadth.advance_decline_ratio.toFixed(2)}x` : "—"} ({breadth.status || "FEED_OFFLINE"})
+                    Evidence: {breadth.benchmark_index || "—"} @ {breadth.index_last != null ? `₹${breadth.index_last.toLocaleString()}` : "—"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "—"}, A/D Ratio {breadth.advance_decline_ratio != null ? `${breadth.advance_decline_ratio.toFixed(2)}x` : "—"} ({breadth.status || "FEED_OFFLINE"})
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "11px" }}>
@@ -2433,6 +2389,16 @@ export default function TerminalHome() {
                   </div>
                 </div>
               )}
+
+              {/* Research unavailable state — no fabricated findings */}
+              {researchError && (
+                <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--red-loss)", padding: "16px", borderRadius: "4px" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: "var(--red-loss)" }}>DATA_UNAVAILABLE</span>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", lineHeight: "1.5" }}>
+                    {researchError}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2630,9 +2596,9 @@ export default function TerminalHome() {
                     <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", marginBottom: "2px" }}>MODEL CALIBRATION</div>
                       <div style={{ fontSize: "16px", fontWeight: 900, color: "var(--green-gain)" }}>
-                        ● {scenarioResult.model_metadata?.calibration_status || "GOOD"}
+                        ● {scenarioResult.model_metadata?.calibration_status || "UNAVAILABLE"}
                       </div>
-                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>Brier: {scenarioResult.model_metadata?.brier_score} | ECE: {scenarioResult.model_metadata?.reliability_error_ece}</div>
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>Brier: {scenarioResult.model_metadata?.brier_score != null ? scenarioResult.model_metadata.brier_score : "N/A"} | ECE: {scenarioResult.model_metadata?.reliability_error_ece != null ? scenarioResult.model_metadata.reliability_error_ece : "N/A"}</div>
                     </div>
                   </div>
 
@@ -2748,7 +2714,7 @@ export default function TerminalHome() {
                           HORIZON: {scenarioResult.inputs?.horizon || scenarioHorizon} ({scenarioResult.inputs?.horizon_days || (HORIZON_DAYS_MAP[scenarioHorizon] || 21)}S)
                         </span>
                         <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "2px", backgroundColor: "rgba(0, 229, 255, 0.12)", color: "var(--cyan-terminal)", border: "1px solid rgba(0, 229, 255, 0.3)", fontWeight: 700 }}>
-                          AGREEMENT: {scenarioResult.model_comparison?.consensus?.model_agreement_pct ?? 92}%
+                          AGREEMENT: {scenarioResult.model_comparison?.consensus?.model_agreement_pct != null ? `${scenarioResult.model_comparison.consensus.model_agreement_pct}%` : "N/A"}
                         </span>
                         <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "2px", backgroundColor: "rgba(0, 230, 118, 0.12)", color: "var(--green-gain)", border: "1px solid rgba(0, 230, 118, 0.3)", fontWeight: 700 }}>
                           SPREAD: ₹{Math.abs(Number((scenarioResult.model_comparison?.chronos_2?.median_q50 ?? scenarioResult.forecast_distribution?.q50) - (scenarioResult.model_comparison?.timesfm_3?.median_q50 ?? (scenarioResult.forecast_distribution?.q50 * 1.006)))).toFixed(2)}
@@ -2769,10 +2735,10 @@ export default function TerminalHome() {
                             fontWeight: 800,
                             padding: "2px 6px",
                             borderRadius: "2px",
-                            backgroundColor: (scenarioResult.model_comparison?.chronos_2?.projected_return_pct ?? 3.0) >= 0 ? "var(--green-dim)" : "var(--red-dim)",
-                            color: (scenarioResult.model_comparison?.chronos_2?.projected_return_pct ?? 3.0) >= 0 ? "var(--green-gain)" : "var(--red-loss)",
+                            backgroundColor: scenarioResult.model_comparison?.chronos_2?.projected_return_pct == null ? "var(--bg-surface)" : (scenarioResult.model_comparison?.chronos_2?.projected_return_pct >= 0 ? "var(--green-dim)" : "var(--red-dim)"),
+                            color: scenarioResult.model_comparison?.chronos_2?.projected_return_pct == null ? "var(--text-muted)" : (scenarioResult.model_comparison?.chronos_2?.projected_return_pct >= 0 ? "var(--green-gain)" : "var(--red-loss)"),
                           }}>
-                            {scenarioResult.model_comparison?.chronos_2?.bias ?? "BULLISH"}
+                            {scenarioResult.model_comparison?.chronos_2?.bias ?? "N/A"}
                           </span>
                         </div>
 
@@ -2780,26 +2746,26 @@ export default function TerminalHome() {
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>Q50 MEDIAN</div>
                             <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--cyan-terminal)" }}>
-                              ₹{scenarioResult.model_comparison?.chronos_2?.median_q50 ?? scenarioResult.forecast_distribution?.q50}
+                              {scenarioResult.model_comparison?.chronos_2?.median_q50 != null ? `₹${scenarioResult.model_comparison.chronos_2.median_q50}` : "N/A"}
                             </div>
                           </div>
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>PROJECTED DRIFT</div>
-                            <div style={{ fontSize: "13px", fontWeight: 800, color: (scenarioResult.model_comparison?.chronos_2?.projected_return_pct ?? 3.0) >= 0 ? "var(--green-gain)" : "var(--red-loss)" }}>
-                              {(scenarioResult.model_comparison?.chronos_2?.projected_return_pct ?? 3.0) >= 0 ? "+" : ""}{scenarioResult.model_comparison?.chronos_2?.projected_return_pct ?? 3.0}%
+                            <div style={{ fontSize: "13px", fontWeight: 800, color: scenarioResult.model_comparison?.chronos_2?.projected_return_pct == null ? "var(--text-muted)" : (scenarioResult.model_comparison?.chronos_2?.projected_return_pct >= 0 ? "var(--green-gain)" : "var(--red-loss)") }}>
+                              {scenarioResult.model_comparison?.chronos_2?.projected_return_pct != null ? `${scenarioResult.model_comparison.chronos_2.projected_return_pct >= 0 ? "+" : ""}${scenarioResult.model_comparison.chronos_2.projected_return_pct}%` : "N/A"}
                             </div>
                           </div>
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>BANDWIDTH (Q10-Q90)</div>
                             <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>
-                              {scenarioResult.model_comparison?.chronos_2?.dispersion_band_pct ?? 31.0}%
+                              {scenarioResult.model_comparison?.chronos_2?.dispersion_band_pct != null ? `${scenarioResult.model_comparison.chronos_2.dispersion_band_pct}%` : "N/A"}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", borderTop: "1px dashed var(--border-subtle)", paddingTop: "6px" }}>
-                          <span>Tail Downside (Q10): <b style={{ color: "var(--red-loss)" }}>₹{scenarioResult.model_comparison?.chronos_2?.q10_downside ?? scenarioResult.forecast_distribution?.q10}</b></span>
-                          <span>Peak Upside (Q90): <b style={{ color: "var(--green-gain)" }}>₹{scenarioResult.model_comparison?.chronos_2?.q90_upside ?? scenarioResult.forecast_distribution?.q90}</b></span>
+                          <span>Tail Downside (Q10): <b style={{ color: "var(--red-loss)" }}>{scenarioResult.model_comparison?.chronos_2?.q10_downside != null ? `₹${scenarioResult.model_comparison.chronos_2.q10_downside}` : "N/A"}</b></span>
+                          <span>Peak Upside (Q90): <b style={{ color: "var(--green-gain)" }}>{scenarioResult.model_comparison?.chronos_2?.q90_upside != null ? `₹${scenarioResult.model_comparison.chronos_2.q90_upside}` : "N/A"}</b></span>
                         </div>
                       </div>
 
@@ -2815,10 +2781,10 @@ export default function TerminalHome() {
                             fontWeight: 800,
                             padding: "2px 6px",
                             borderRadius: "2px",
-                            backgroundColor: (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct ?? 3.6) >= 0 ? "var(--green-dim)" : "var(--red-dim)",
-                            color: (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct ?? 3.6) >= 0 ? "var(--green-gain)" : "var(--red-loss)",
+                            backgroundColor: scenarioResult.model_comparison?.timesfm_3?.projected_return_pct == null ? "var(--bg-surface)" : (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct >= 0 ? "var(--green-dim)" : "var(--red-dim)"),
+                            color: scenarioResult.model_comparison?.timesfm_3?.projected_return_pct == null ? "var(--text-muted)" : (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct >= 0 ? "var(--green-gain)" : "var(--red-loss)"),
                           }}>
-                            {scenarioResult.model_comparison?.timesfm_3?.bias ?? "BULLISH"}
+                            {scenarioResult.model_comparison?.timesfm_3?.bias ?? "N/A"}
                           </span>
                         </div>
 
@@ -2826,26 +2792,26 @@ export default function TerminalHome() {
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>Q50 MEDIAN</div>
                             <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--amber-bloomberg)" }}>
-                              ₹{scenarioResult.model_comparison?.timesfm_3?.median_q50 ?? Number((scenarioResult.forecast_distribution?.q50 * 1.006).toFixed(2))}
+                              {scenarioResult.model_comparison?.timesfm_3?.median_q50 != null ? `₹${scenarioResult.model_comparison.timesfm_3.median_q50}` : "N/A"}
                             </div>
                           </div>
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>PROJECTED DRIFT</div>
-                            <div style={{ fontSize: "13px", fontWeight: 800, color: (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct ?? 3.6) >= 0 ? "var(--green-gain)" : "var(--red-loss)" }}>
-                              {(scenarioResult.model_comparison?.timesfm_3?.projected_return_pct ?? 3.6) >= 0 ? "+" : ""}{scenarioResult.model_comparison?.timesfm_3?.projected_return_pct ?? 3.6}%
+                            <div style={{ fontSize: "13px", fontWeight: 800, color: scenarioResult.model_comparison?.timesfm_3?.projected_return_pct == null ? "var(--text-muted)" : (scenarioResult.model_comparison?.timesfm_3?.projected_return_pct >= 0 ? "var(--green-gain)" : "var(--red-loss)") }}>
+                              {scenarioResult.model_comparison?.timesfm_3?.projected_return_pct != null ? `${scenarioResult.model_comparison.timesfm_3.projected_return_pct >= 0 ? "+" : ""}${scenarioResult.model_comparison.timesfm_3.projected_return_pct}%` : "N/A"}
                             </div>
                           </div>
                           <div style={{ backgroundColor: "var(--bg-surface)", padding: "6px", borderRadius: "2px" }}>
                             <div style={{ fontSize: "8px", color: "var(--text-muted)" }}>BANDWIDTH (Q10-Q90)</div>
                             <div style={{ fontSize: "13px", fontWeight: 800, color: "var(--text-primary)" }}>
-                              {scenarioResult.model_comparison?.timesfm_3?.dispersion_band_pct ?? 32.7}%
+                              {scenarioResult.model_comparison?.timesfm_3?.dispersion_band_pct != null ? `${scenarioResult.model_comparison.timesfm_3.dispersion_band_pct}%` : "N/A"}
                             </div>
                           </div>
                         </div>
 
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--text-secondary)", borderTop: "1px dashed var(--border-subtle)", paddingTop: "6px" }}>
-                          <span>Tail Downside (Q10): <b style={{ color: "var(--red-loss)" }}>₹{scenarioResult.model_comparison?.timesfm_3?.q10_downside ?? Number((scenarioResult.forecast_distribution?.q10 * 0.995).toFixed(2))}</b></span>
-                          <span>Peak Upside (Q90): <b style={{ color: "var(--green-gain)" }}>₹{scenarioResult.model_comparison?.timesfm_3?.q90_upside ?? Number((scenarioResult.forecast_distribution?.q90 * 1.01).toFixed(2))}</b></span>
+                          <span>Tail Downside (Q10): <b style={{ color: "var(--red-loss)" }}>{scenarioResult.model_comparison?.timesfm_3?.q10_downside != null ? `₹${scenarioResult.model_comparison.timesfm_3.q10_downside}` : "N/A"}</b></span>
+                          <span>Peak Upside (Q90): <b style={{ color: "var(--green-gain)" }}>{scenarioResult.model_comparison?.timesfm_3?.q90_upside != null ? `₹${scenarioResult.model_comparison.timesfm_3.q90_upside}` : "N/A"}</b></span>
                         </div>
                       </div>
                     </div>
@@ -2855,17 +2821,17 @@ export default function TerminalHome() {
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span style={{ fontWeight: 800, color: "var(--text-muted)" }}>ENSEMBLE CONSENSUS:</span>
                         <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>
-                          Median Price: <b style={{ color: "var(--amber-bloomberg)" }}>₹{scenarioResult.model_comparison?.consensus?.ensemble_median ?? Number((scenarioResult.forecast_distribution?.q50 * 1.003).toFixed(2))}</b>
+                          Median Price: <b style={{ color: "var(--amber-bloomberg)" }}>{scenarioResult.model_comparison?.consensus?.ensemble_median != null ? `₹${scenarioResult.model_comparison.consensus.ensemble_median}` : "N/A"}</b>
                         </span>
                         <span style={{ color: "var(--text-muted)" }}>|</span>
                         <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>
-                          Combined Drift: <b style={{ color: "var(--green-gain)" }}>+{(scenarioResult.model_comparison?.consensus?.combined_return_pct ?? 3.3)}%</b>
+                          Combined Drift: <b style={{ color: "var(--green-gain)" }}>{scenarioResult.model_comparison?.consensus?.combined_return_pct != null ? `${scenarioResult.model_comparison.consensus.combined_return_pct >= 0 ? "+" : ""}${scenarioResult.model_comparison.consensus.combined_return_pct}%` : "N/A"}</b>
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span style={{ color: "var(--text-muted)" }}>Cross-Model Dispersion Delta:</span>
                         <span style={{ fontWeight: 700, color: "var(--cyan-terminal)" }}>
-                          {scenarioResult.model_comparison?.consensus?.dispersion_delta ?? 1.7}%
+                          {scenarioResult.model_comparison?.consensus?.dispersion_delta != null ? `${scenarioResult.model_comparison.consensus.dispersion_delta}%` : "N/A"}
                         </span>
                       </div>
                     </div>
@@ -2896,26 +2862,26 @@ export default function TerminalHome() {
                           <div style={{
                             fontSize: "14px",
                             fontWeight: 900,
-                            color: (scenarioResult.decision_council?.consensus_verdict?.includes("ACCUMULATE") || scenarioResult.decision_council?.consensus_verdict === "BUY") ? "var(--green-gain)" : scenarioResult.decision_council?.consensus_verdict?.includes("HOLD") ? "var(--amber-bloomberg)" : "var(--red-loss)",
+                            color: scenarioResult.decision_council?.consensus_verdict === "INSUFFICIENT_DATA" ? "var(--amber-bloomberg)" : "var(--cyan-terminal)",
                           }}>
-                            {scenarioResult.decision_council?.consensus_verdict?.replace("_", " ") || "MODERATE ACCUMULATE"}
+                            {scenarioResult.decision_council?.consensus_verdict?.replace("_", " ") || "N/A"}
                           </div>
                         </div>
 
                         <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border-subtle)", padding: "6px 12px", borderRadius: "3px", minWidth: "120px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", marginBottom: "4px" }}>
                             <span>CONVICTION</span>
-                            <b style={{ color: "var(--cyan-terminal)" }}>{scenarioResult.decision_council?.conviction_score ?? 81.5}%</b>
+                            <b style={{ color: "var(--cyan-terminal)" }}>{scenarioResult.decision_council?.conviction_score != null ? `${scenarioResult.decision_council.conviction_score}%` : "N/A"}</b>
                           </div>
                           <div style={{ width: "100%", height: "4px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "2px", overflow: "hidden" }}>
-                            <div style={{ width: `${scenarioResult.decision_council?.conviction_score ?? 81.5}%`, height: "100%", backgroundColor: "var(--cyan-terminal)" }} />
+                            <div style={{ width: `${scenarioResult.decision_council?.conviction_score ?? 0}%`, height: "100%", backgroundColor: "var(--cyan-terminal)" }} />
                           </div>
                         </div>
 
                         <div style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border-subtle)", padding: "6px 12px", borderRadius: "3px" }}>
                           <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>DISAGREEMENT INDEX</div>
-                          <div style={{ fontSize: "12px", fontWeight: 800, color: (scenarioResult.decision_council?.disagreement_index ?? 0.19) < 0.3 ? "var(--green-gain)" : "var(--amber-bloomberg)" }}>
-                            {scenarioResult.decision_council?.disagreement_index ?? 0.19} <span style={{ fontSize: "9px", color: "var(--text-muted)", fontWeight: 400 }}>/ 1.0</span>
+                          <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--text-muted)" }}>
+                            {scenarioResult.decision_council?.disagreement_index != null ? `${scenarioResult.decision_council.disagreement_index} / 1.0` : "N/A"}
                           </div>
                         </div>
                       </div>
@@ -2923,53 +2889,13 @@ export default function TerminalHome() {
 
                     {/* 4 Specialist Agent Cards */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
-                      {(scenarioResult.decision_council?.agent_deliberations || [
-                        {
-                          agent_id: "agent_quant_ts",
-                          name: "Alpha Forecaster",
-                          role: "Quantitative & Time-Series Lead (Chronos-2 + TimesFM 3.0)",
-                          vote: "BULLISH",
-                          conviction_pct: 86.0,
-                          key_metrics: { chronos: "+3.0%", timesfm: "+3.6%", rsi: "54.2" },
-                          rationale: "Both Chronos-2 and TimesFM 3.0 project positive drift over the horizon with low quantile divergence.",
-                          primary_risks: ["Volatility regime spike expanding downside tail"],
-                        },
-                        {
-                          agent_id: "agent_fundamental",
-                          name: "Graham-Bachelier Analyst",
-                          role: "Fundamental Valuation & ROCE Lead",
-                          vote: "BULLISH",
-                          conviction_pct: 82.0,
-                          key_metrics: { pe: "28.5", roce: "22.4%", margin_of_safety: "ADEQUATE" },
-                          rationale: "ROCE comfortably clears cost of capital hurdle with positive operating cash flow yield.",
-                          primary_risks: ["Input cost escalation squeezing EBIT margin"],
-                        },
-                        {
-                          agent_id: "agent_lodr",
-                          name: "SEBI LODR Auditor",
-                          role: "Regulation 30 Materiality & Governance Lead",
-                          vote: "APPROVED",
-                          conviction_pct: 88.0,
-                          key_metrics: { filings: "12", regulatory_flags: "0", pledge: "0.0%" },
-                          rationale: "Clean regulatory track record under SEBI LODR Regulation 30. No promoter pledge concerns.",
-                          primary_risks: ["Quarterly capex milestone disclosure pending"],
-                        },
-                        {
-                          agent_id: "agent_risk",
-                          name: "Capital Preservation Officer",
-                          role: "Execution Risk & Whole-Share Sizing Lead",
-                          vote: "APPROVED",
-                          conviction_pct: 84.0,
-                          key_metrics: { shares: "Whole-Share", friction: "0.15%", tail_risk: "4.7%" },
-                          rationale: "Executable allocation adhering to Indian cash equity whole-share constraints and capital preservation.",
-                          primary_risks: ["Gap-down open past stop-loss threshold"],
-                        },
-                      ]).map((agent: any, idx: number) => {
+                      {(scenarioResult.decision_council?.agent_deliberations || []).map((agent: any, idx: number) => {
                         const isPositive = agent.vote === "BULLISH" || agent.vote === "APPROVED";
+                        const isInsufficient = agent.vote === "INSUFFICIENT_DATA";
                         const isConstrained = agent.vote === "NEUTRAL" || agent.vote === "CONSTRAINED";
-                        const badgeBg = isPositive ? "var(--green-dim)" : isConstrained ? "var(--amber-dim)" : "var(--red-dim)";
-                        const badgeColor = isPositive ? "var(--green-gain)" : isConstrained ? "var(--amber-bloomberg)" : "var(--red-loss)";
-                        const topBorder = isPositive ? "var(--green-gain)" : isConstrained ? "var(--amber-bloomberg)" : "var(--red-loss)";
+                        const badgeBg = isPositive ? "var(--green-dim)" : isInsufficient ? "var(--amber-dim)" : isConstrained ? "var(--amber-dim)" : "var(--red-dim)";
+                        const badgeColor = isPositive ? "var(--green-gain)" : isInsufficient ? "var(--amber-bloomberg)" : isConstrained ? "var(--amber-bloomberg)" : "var(--red-loss)";
+                        const topBorder = isPositive ? "var(--green-gain)" : isInsufficient ? "var(--amber-bloomberg)" : isConstrained ? "var(--amber-bloomberg)" : "var(--red-loss)";
 
                         return (
                           <div
@@ -2997,7 +2923,7 @@ export default function TerminalHome() {
 
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "9px", color: "var(--text-muted)", backgroundColor: "var(--bg-surface)", padding: "4px 8px", borderRadius: "2px" }}>
                               <span>Conviction:</span>
-                              <b style={{ color: "var(--cyan-terminal)" }}>{agent.conviction_pct}%</b>
+                              <b style={{ color: "var(--cyan-terminal)" }}>{agent.conviction_pct != null ? `${agent.conviction_pct}%` : "N/A"}</b>
                             </div>
 
                             <div style={{ fontSize: "10px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
@@ -3026,11 +2952,7 @@ export default function TerminalHome() {
                           </span>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {(scenarioResult.decision_council?.invalidation_triggers || [
-                            `Daily closing breach below 50-DMA structural support`,
-                            `SEBI LODR Regulation 30 disclosure of unhedged promoter pledge increase exceeding 2.5%`,
-                            `Institutional delivery volume contraction below 30-day baseline`,
-                          ]).map((trig: string, idx: number) => (
+                          {(scenarioResult.decision_council?.invalidation_triggers || []).map((trig: string, idx: number) => (
                             <div key={idx} style={{ fontSize: "10px", color: "var(--text-secondary)", display: "flex", alignItems: "flex-start", gap: "6px" }}>
                               <span style={{ color: "var(--red-loss)", fontWeight: 700 }}>•</span>
                               <span>{trig}</span>
@@ -3048,10 +2970,7 @@ export default function TerminalHome() {
                           </span>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {(scenarioResult.decision_council?.dissenting_views || [
-                            "Capital Preservation Officer highlights cash remainder drag on sub-optimal position sizing",
-                            "SEBI LODR Auditor cautions against near-term quarterly earnings volatility window",
-                          ]).map((dissent: string, idx: number) => (
+                          {(scenarioResult.decision_council?.dissenting_views || []).map((dissent: string, idx: number) => (
                             <div key={idx} style={{ fontSize: "10px", color: "var(--text-secondary)", display: "flex", alignItems: "flex-start", gap: "6px" }}>
                               <span style={{ color: "var(--amber-bloomberg)", fontWeight: 700 }}>⚠</span>
                               <span>{dissent}</span>
@@ -3083,10 +3002,17 @@ export default function TerminalHome() {
                         COMPARABLE HISTORICAL EVENT STUDIES
                       </h4>
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}><span>Matched Historical Events:</span><b>{scenarioResult.comparable_events?.historical_matches} cases</b></div>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}><span>Event Taxonomy:</span><b>{scenarioResult.comparable_events?.event_type}</b></div>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}><span>Median Historical Reaction:</span><b style={{ color: "var(--green-gain)" }}>{scenarioResult.comparable_events?.median_reaction_pct}</b></div>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}><span>Historical Dispersion:</span><span>{scenarioResult.comparable_events?.reaction_range}</span></div>
+                        {scenarioResult.comparable_events?.status === "DATA_UNAVAILABLE" || !scenarioResult.comparable_events ? (
+                          <div style={{ color: "var(--text-muted)" }}>
+                            DATA_UNAVAILABLE: {scenarioResult.comparable_events?.reason || "No real historical comparable events are available."}
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Matched Historical Events:</span><b>{scenarioResult.comparable_events?.sample_size ?? "N/A"} cases</b></div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Median 5D Reaction:</span><b style={{ color: "var(--green-gain)" }}>{scenarioResult.comparable_events?.statistics?.median_5d_reaction_pct != null ? `${scenarioResult.comparable_events.statistics.median_5d_reaction_pct}%` : "N/A"}</b></div>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Median 20D Reaction:</span><b style={{ color: "var(--green-gain)" }}>{scenarioResult.comparable_events?.statistics?.median_20d_reaction_pct != null ? `${scenarioResult.comparable_events.statistics.median_20d_reaction_pct}%` : "N/A"}</b></div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -3245,7 +3171,7 @@ export default function TerminalHome() {
                   </p>
                 </div>
                 <span className="badge-critical" style={{ backgroundColor: "var(--green-dim)", color: "var(--green-gain)", borderColor: "var(--green-gain)" }}>
-                  UPSTOX V3 CONNECTED (USER: 86BCDQ)
+                  {portfolioStatus?.is_authenticated ? `UPSTOX V3 CONNECTED${portfolioStatus.user_id ? ` (USER: ${portfolioStatus.user_id})` : ""}` : "PORTFOLIO FEED UNAVAILABLE"}
                 </span>
               </div>
 
@@ -3254,27 +3180,25 @@ export default function TerminalHome() {
                 <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>TOTAL INVESTED</div>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>
-                    ₹{portfolioTotals.total_invested.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    {portfolioTotals?.total_invested != null ? `₹${portfolioTotals.total_invested.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
                   </div>
                 </div>
                 <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                   <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>CURRENT VALUE</div>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: "var(--text-primary)", marginTop: "2px" }}>
-                    ₹{portfolioTotals.total_current_value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    {portfolioTotals?.total_current_value != null ? `₹${portfolioTotals.total_current_value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}` : "—"}
                   </div>
                 </div>
                 {(() => {
-                  const pnl = Number(portfolioTotals.total_pnl || 0);
-                  const invested = Number(portfolioTotals.total_invested || 0);
-                  const pnlPct = portfolioTotals.total_pnl_pct !== undefined
-                    ? Number(portfolioTotals.total_pnl_pct)
-                    : (invested > 0 ? (pnl / invested) * 100 : 0);
-                  const isPositive = pnl >= 0;
+                  const pnl = portfolioTotals?.total_pnl != null ? Number(portfolioTotals.total_pnl) : null;
+const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotals.total_invested) : null;
+  const pnlPct = portfolioTotals?.total_pnl_pct != null ? Number(portfolioTotals.total_pnl_pct) : null;
+  const isPositive = pnl != null && pnl >= 0;
                   return (
                     <div style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border-subtle)", padding: "12px", borderRadius: "3px" }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>TOTAL P&L</div>
                       <div style={{ fontSize: "18px", fontWeight: 800, color: isPositive ? "var(--green-gain)" : "var(--red-loss)", marginTop: "2px" }}>
-                        {isPositive ? "+" : "-"}₹{Math.abs(pnl).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({isPositive ? "+" : "-"}{Math.abs(pnlPct).toFixed(2)}%)
+                        {pnl != null && pnlPct != null ? `${isPositive ? "+" : "-"}₹${Math.abs(pnl).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${isPositive ? "+" : "-"}${Math.abs(pnlPct).toFixed(2)}%)` : "—"}
                       </div>
                     </div>
                   );
@@ -3665,12 +3589,7 @@ export default function TerminalHome() {
                     <tr style={{ borderBottom: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card)", color: "var(--text-muted)" }}>
                       <th style={{ padding: "10px 14px", width: "22%" }}>FINANCIAL METRIC</th>
                       {(() => {
-                        const list = compareData.length > 0 ? compareData : [
-                          { symbol: "RELIANCE", name: "Reliance Industries", current_price: 3021.23, market_cap_cr: 2044000, pe_ratio: 27.6, roce_pct: 12.4, debt_to_equity: 0.34, rsi_14: 56.4 },
-                          { symbol: "LT", name: "Larsen & Toubro", current_price: 3712.45, market_cap_cr: 510000, pe_ratio: 34.4, roce_pct: 18.2, debt_to_equity: 0.82, rsi_14: 58.2 },
-                          { symbol: "TCS", name: "Tata Consultancy Services", current_price: 4250.00, market_cap_cr: 1540000, pe_ratio: 33.5, roce_pct: 52.8, debt_to_equity: 0.00, rsi_14: 62.1 },
-                          { symbol: "HDFCBANK", name: "HDFC Bank", current_price: 1640.00, market_cap_cr: 1250000, pe_ratio: 18.9, roce_pct: 16.8, debt_to_equity: "N/A", rsi_14: 49.2 },
-                        ];
+                        const list = compareData;
                         const colors = ["var(--cyan-terminal)", "var(--amber-bloomberg)", "var(--green-gain)", "var(--text-primary)", "#FF6D00", "#7C4DFF"];
                         return list.map((c: any, i: number) => (
                           <th key={c.symbol || i} style={{ padding: "10px 14px", color: colors[i % colors.length] }}>
@@ -3693,12 +3612,7 @@ export default function TerminalHome() {
                   </thead>
                   <tbody>
                     {(() => {
-                      const list = compareData.length > 0 ? compareData : [
-                        { symbol: "RELIANCE", name: "Reliance Industries", current_price: 3021.23, market_cap_cr: 2044000, pe_ratio: 27.6, roce_pct: 12.4, debt_to_equity: 0.34, rsi_14: 56.4 },
-                        { symbol: "LT", name: "Larsen & Toubro", current_price: 3712.45, market_cap_cr: 510000, pe_ratio: 34.4, roce_pct: 18.2, debt_to_equity: 0.82, rsi_14: 58.2 },
-                        { symbol: "TCS", name: "Tata Consultancy Services", current_price: 4250.00, market_cap_cr: 1540000, pe_ratio: 33.5, roce_pct: 52.8, debt_to_equity: 0.00, rsi_14: 62.1 },
-                        { symbol: "HDFCBANK", name: "HDFC Bank", current_price: 1640.00, market_cap_cr: 1250000, pe_ratio: 18.9, roce_pct: 16.8, debt_to_equity: "N/A", rsi_14: 49.2 },
-                      ];
+                      const list = compareData;
                       return (
                         <>
                           <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -3737,7 +3651,7 @@ export default function TerminalHome() {
                             <td style={{ padding: "8px 14px", color: "var(--text-muted)" }}>Debt to Equity</td>
                             {list.map((c: any) => (
                               <td key={c.symbol} style={{ padding: "8px 14px" }}>
-                                {typeof c.debt_to_equity === "number" ? `${c.debt_to_equity.toFixed(2)}x` : (c.debt_to_equity || "0.00x")}
+                                {typeof c.debt_to_equity === "number" ? `${c.debt_to_equity.toFixed(2)}x` : (c.debt_to_equity ?? "N/A")}
                               </td>
                             ))}
                           </tr>
@@ -3745,7 +3659,7 @@ export default function TerminalHome() {
                             <td style={{ padding: "8px 14px", color: "var(--text-muted)" }}>RSI (14-Day)</td>
                             {list.map((c: any) => (
                               <td key={c.symbol} style={{ padding: "8px 14px" }}>
-                                {c.rsi_14 || 55.0}
+                                {c.rsi_14 ?? "N/A"}
                               </td>
                             ))}
                           </tr>
@@ -3811,45 +3725,12 @@ export default function TerminalHome() {
                     CROSS-MODEL BENCHMARK // AMAZON CHRONOS-2 vs GOOGLE TIMESFM 3.0
                   </span>
                   <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
-                    Trained on 100B+ tokens, evaluated zero-shot on 36 Indian equity symbols
+                    No persisted out-of-sample benchmark evaluation
                   </span>
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card)", color: "var(--text-muted)" }}>
-                      <th style={{ padding: "8px 12px" }}>BENCHMARK METRIC</th>
-                      <th style={{ padding: "8px 12px", color: "var(--cyan-terminal)" }}>AMAZON CHRONOS-2 (T5)</th>
-                      <th style={{ padding: "8px 12px", color: "var(--amber-bloomberg)" }}>GOOGLE TIMESFM 3.0 (500M)</th>
-                      <th style={{ padding: "8px 12px" }}>DELTA / ADVANTAGE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--text-primary)" }}>NSE 500 Zero-Shot MAE</td>
-                      <td style={{ padding: "8px 12px", color: "var(--cyan-terminal)", fontWeight: 700 }}>14.80 pts</td>
-                      <td style={{ padding: "8px 12px", color: "var(--amber-bloomberg)", fontWeight: 700 }}>13.95 pts</td>
-                      <td style={{ padding: "8px 12px", color: "var(--green-gain)" }}>TimesFM -5.7% lower error</td>
-                    </tr>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--text-primary)" }}>Tail Risk Capture (Q10 / Q90)</td>
-                      <td style={{ padding: "8px 12px", color: "var(--cyan-terminal)", fontWeight: 700 }}>82.4% empirical coverage</td>
-                      <td style={{ padding: "8px 12px", color: "var(--amber-bloomberg)", fontWeight: 700 }}>84.1% empirical coverage</td>
-                      <td style={{ padding: "8px 12px", color: "var(--green-gain)" }}>TimesFM +1.7% better coverage</td>
-                    </tr>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--text-primary)" }}>Inference Latency (63 sessions)</td>
-                      <td style={{ padding: "8px 12px", color: "var(--cyan-terminal)", fontWeight: 700 }}>42ms (GPU) / 180ms (CPU)</td>
-                      <td style={{ padding: "8px 12px", color: "var(--amber-bloomberg)", fontWeight: 700 }}>36ms (GPU) / 140ms (CPU)</td>
-                      <td style={{ padding: "8px 12px", color: "var(--green-gain)" }}>TimesFM 1.2x faster tokenization</td>
-                    </tr>
-                    <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--text-primary)" }}>Quantile Calibration Brier</td>
-                      <td style={{ padding: "8px 12px", color: "var(--cyan-terminal)", fontWeight: 700 }}>0.082</td>
-                      <td style={{ padding: "8px 12px", color: "var(--amber-bloomberg)", fontWeight: 700 }}>0.078</td>
-                      <td style={{ padding: "8px 12px", color: "var(--green-gain)" }}>Ensemble blended: 0.074</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  INSUFFICIENT_DATA: no out-of-sample benchmark evaluation (MAE, coverage, latency, or Brier score) has been persisted for these models in this deployment. Head-to-head metrics are populated only after a real walk-forward evaluation run is recorded.
+                </div>
               </div>
             </div>
           )}
