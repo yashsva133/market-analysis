@@ -436,10 +436,14 @@ export default function TerminalHome() {
   const [selectedCompany, setSelectedCompany] = useState<any>(DEMO_COMPANIES[0]);
   const [sources, setSources] = useState<SourceHealthItem[]>(DEMO_SOURCES);
   const [searchTerm, setSearchTerm] = useState("");
+  const [omnibarOpen, setOmnibarOpen] = useState(false);
+  const [omnibarResults, setOmnibarResults] = useState<any[]>([]);
+  const [omnibarFocusIdx, setOmnibarFocusIdx] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Search input ref for keyboard shortcut '/'
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const omnibarRef = useRef<HTMLDivElement | null>(null);
 
   // Screener state
   const [screenerFilters, setScreenerFilters] = useState({
@@ -627,6 +631,8 @@ export default function TerminalHome() {
       if (e.key === "Escape") {
         searchInputRef.current?.blur();
         setSearchTerm("");
+        setOmnibarOpen(false);
+        setOmnibarResults([]);
         return;
       }
 
@@ -1597,26 +1603,82 @@ export default function TerminalHome() {
           </div>
         </div>
 
-        {/* Global Search Bar (Hot-keyed with '/') */}
+        {/* Global Search Omnibar (Hot-keyed with '/') */}
         <div
+          ref={omnibarRef}
           style={{
+            position: "relative",
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            backgroundColor: "var(--bg-card)",
+            backgroundColor: omnibarOpen ? "var(--bg-surface)" : "var(--bg-card)",
             padding: "4px 10px",
             borderRadius: "3px",
-            border: "1px solid var(--border-subtle)",
-            width: "320px",
+            border: omnibarOpen ? "1px solid var(--cyan-terminal)" : "1px solid var(--border-subtle)",
+            width: "380px",
+            transition: "border-color 0.15s ease",
           }}
         >
-          <Search size={13} color="var(--text-muted)" />
+          <Search size={13} color={omnibarOpen ? "var(--cyan-terminal)" : "var(--text-muted)"} />
           <input
             ref={searchInputRef}
+            id="global-omnibar"
             type="text"
-            placeholder="Global search [/] Symbol, ISIN, Event, Filing..."
+            placeholder="Search symbol, ISIN, company... [/]"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchTerm(val);
+              if (val.trim().length === 0) {
+                setOmnibarOpen(false);
+                setOmnibarResults([]);
+                return;
+              }
+              const q = val.trim().toUpperCase();
+              const matched = companies.filter((c: any) => {
+                if (c.symbol?.toUpperCase().includes(q)) return true;
+                if (c.name?.toUpperCase().includes(q)) return true;
+                if (c.isin?.toUpperCase().includes(q)) return true;
+                if (c.bse_code?.includes(q)) return true;
+                if (Array.isArray(c.aliases) && c.aliases.some((a: string) => a.toUpperCase().includes(q))) return true;
+                return false;
+              }).slice(0, 8);
+              setOmnibarResults(matched);
+              setOmnibarFocusIdx(0);
+              setOmnibarOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (!omnibarOpen) return;
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setOmnibarFocusIdx(i => Math.min(i + 1, omnibarResults.length - 1));
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setOmnibarFocusIdx(i => Math.max(i - 1, 0));
+              } else if (e.key === "Enter" && omnibarResults.length > 0) {
+                e.preventDefault();
+                const hit = omnibarResults[omnibarFocusIdx];
+                if (hit) {
+                  setSelectedCompany(hit);
+                  setActiveTab("company");
+                  setSearchTerm("");
+                  setOmnibarOpen(false);
+                  setOmnibarResults([]);
+                }
+              } else if (e.key === "Escape") {
+                setSearchTerm("");
+                setOmnibarOpen(false);
+                setOmnibarResults([]);
+                searchInputRef.current?.blur();
+              }
+            }}
+            onFocus={() => {
+              if (searchTerm.trim().length > 0 && omnibarResults.length > 0) setOmnibarOpen(true);
+            }}
+            onBlur={(e) => {
+              // Delay to allow click on result rows
+              setTimeout(() => setOmnibarOpen(false), 180);
+            }}
             style={{
               background: "transparent",
               border: "none",
@@ -1627,9 +1689,119 @@ export default function TerminalHome() {
               width: "100%",
             }}
           />
-          <span style={{ fontSize: "9px", color: "var(--text-muted)", backgroundColor: "var(--bg-surface)", padding: "1px 5px", borderRadius: "2px", border: "1px solid var(--border-subtle)" }}>
-            /
-          </span>
+          {searchTerm.length > 0 ? (
+            <button
+              onClick={() => { setSearchTerm(""); setOmnibarOpen(false); setOmnibarResults([]); searchInputRef.current?.focus(); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "0 2px", fontSize: "12px", lineHeight: 1 }}
+            >✕</button>
+          ) : (
+            <span style={{ fontSize: "9px", color: "var(--text-muted)", backgroundColor: "var(--bg-surface)", padding: "1px 5px", borderRadius: "2px", border: "1px solid var(--border-subtle)" }}>/</span>
+          )}
+
+          {/* Omnibar Dropdown */}
+          {omnibarOpen && omnibarResults.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                right: 0,
+                backgroundColor: "var(--bg-surface)",
+                border: "1px solid var(--cyan-terminal)",
+                borderRadius: "4px",
+                zIndex: 9999,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Header */}
+              <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "9px", color: "var(--cyan-terminal)", fontWeight: 700, letterSpacing: "1px" }}>EQUITIES &amp; SECURITIES — {omnibarResults.length} MATCH{omnibarResults.length !== 1 ? "ES" : ""}</span>
+                <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>↑↓ navigate · Enter = Dossier · Esc = close</span>
+              </div>
+
+              {/* Result rows */}
+              {omnibarResults.map((company, idx) => (
+                <div
+                  key={company.id || company.symbol}
+                  onMouseEnter={() => setOmnibarFocusIdx(idx)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "8px 10px",
+                    gap: "10px",
+                    backgroundColor: idx === omnibarFocusIdx ? "rgba(0,191,255,0.08)" : "transparent",
+                    borderLeft: idx === omnibarFocusIdx ? "2px solid var(--cyan-terminal)" : "2px solid transparent",
+                    cursor: "pointer",
+                    borderBottom: idx < omnibarResults.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                  }}
+                >
+                  {/* Symbol badge */}
+                  <div style={{ minWidth: "100px" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 700, color: "var(--cyan-terminal)" }}>{company.symbol}</div>
+                    {company.aliases && company.aliases.length > 0 && (
+                      <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>{company.aliases.join(" · ")}</div>
+                    )}
+                  </div>
+
+                  {/* Company name + sector */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "11px", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{company.name}</div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "1px" }}>{company.sector}</div>
+                  </div>
+
+                  {/* LTP */}
+                  <div style={{ textAlign: "right", minWidth: "70px" }}>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--green-gain)", fontFamily: "var(--font-mono)" }}>{company.price}</div>
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>LTP</div>
+                  </div>
+
+                  {/* Quick-action buttons */}
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button
+                      onMouseDown={(ev) => { ev.preventDefault(); setSelectedCompany(company); setActiveTab("company"); setSearchTerm(""); setOmnibarOpen(false); setOmnibarResults([]); }}
+                      style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "2px", border: "1px solid var(--cyan-terminal)", backgroundColor: "transparent", color: "var(--cyan-terminal)", cursor: "pointer", fontFamily: "var(--font-mono)", fontWeight: 700 }}
+                    >DOSSIER [3]</button>
+                    <button
+                      onMouseDown={(ev) => { ev.preventDefault(); setSelectedCompany(company); setActiveTab("scenario"); setSearchTerm(""); setOmnibarOpen(false); setOmnibarResults([]); }}
+                      style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "2px", border: "1px solid var(--amber-bloomberg)", backgroundColor: "transparent", color: "var(--amber-bloomberg)", cursor: "pointer", fontFamily: "var(--font-mono)", fontWeight: 700 }}
+                    >SCENARIO [8]</button>
+                    <button
+                      onMouseDown={(ev) => { ev.preventDefault(); if (!compareSymbols.includes(company.symbol)) setCompareSymbols(prev => [...prev.slice(-3), company.symbol]); setActiveTab("compare"); setSearchTerm(""); setOmnibarOpen(false); setOmnibarResults([]); }}
+                      style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "2px", border: "1px solid var(--border-subtle)", backgroundColor: "transparent", color: "var(--text-secondary)", cursor: "pointer", fontFamily: "var(--font-mono)" }}
+                    >COMPARE</button>
+                  </div>
+                </div>
+              ))}
+
+              {/* No-result hint if search active but zero results */}
+              <div style={{ padding: "6px 10px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "16px" }}>
+                <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>BSE/NSE · 5,182 ISIN universe</span>
+                <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Try: AIGL · AIRTEL · RELIANCE · ZOMATO</span>
+              </div>
+            </div>
+          )}
+
+          {/* Zero-results state */}
+          {omnibarOpen && omnibarResults.length === 0 && searchTerm.trim().length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 4px)",
+                left: 0,
+                right: 0,
+                backgroundColor: "var(--bg-surface)",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: "4px",
+                zIndex: 9999,
+                padding: "12px 14px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+              }}
+            >
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>No match for <span style={{ color: "var(--text-primary)" }}>&ldquo;{searchTerm}&rdquo;</span></div>
+              <div style={{ fontSize: "9px", color: "var(--text-muted)", marginTop: "4px" }}>Try full symbol (BHARTIARTL), alias (AIRTEL, AIGL), or ISIN</div>
+            </div>
+          )}
         </div>
 
         {/* Right Status Badges & Controls */}
