@@ -200,8 +200,8 @@ export default function TerminalHome() {
   const [scenarioSymbol, setScenarioSymbol] = useState("RELIANCE");
   const [scenarioCapital, setScenarioCapital] = useState(500.0);
   const [scenarioHorizon, setScenarioHorizon] = useState("3M");
-  const [scenarioTargetPrice, setScenarioTargetPrice] = useState(1600.0);
-  const [scenarioStopLoss, setScenarioStopLoss] = useState(2700.0);
+  const [scenarioTargetPrice, setScenarioTargetPrice] = useState<number | null>(null);
+  const [scenarioStopLoss, setScenarioStopLoss] = useState<number | null>(null);
   const [scenarioBenchmark, setScenarioBenchmark] = useState("");
   const [scenarioResult, setScenarioResult] = useState<any>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
@@ -3589,12 +3589,7 @@ const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotal
                     <tr style={{ borderBottom: "1px solid var(--border-subtle)", backgroundColor: "var(--bg-card)", color: "var(--text-muted)" }}>
                       <th style={{ padding: "10px 14px", width: "22%" }}>FINANCIAL METRIC</th>
                       {(() => {
-                        const list = compareData.length > 0 ? compareData : [
-                          { symbol: "RELIANCE", name: "Reliance Industries", current_price: 3021.23, market_cap_cr: 2044000, pe_ratio: 27.6, roce_pct: 12.4, debt_to_equity: 0.34, rsi_14: 56.4 },
-                          { symbol: "LT", name: "Larsen & Toubro", current_price: 3712.45, market_cap_cr: 510000, pe_ratio: 34.4, roce_pct: 18.2, debt_to_equity: 0.82, rsi_14: 58.2 },
-                          { symbol: "TCS", name: "Tata Consultancy Services", current_price: 4250.00, market_cap_cr: 1540000, pe_ratio: 33.5, roce_pct: 52.8, debt_to_equity: 0.00, rsi_14: 62.1 },
-                          { symbol: "HDFCBANK", name: "HDFC Bank", current_price: 1640.00, market_cap_cr: 1250000, pe_ratio: 18.9, roce_pct: 16.8, debt_to_equity: "N/A", rsi_14: 49.2 },
-                        ];
+                        const list = compareData;
                         const colors = ["var(--cyan-terminal)", "var(--amber-bloomberg)", "var(--green-gain)", "var(--text-primary)", "#FF6D00", "#7C4DFF"];
                         return list.map((c: any, i: number) => (
                           <th key={c.symbol || i} style={{ padding: "10px 14px", color: colors[i % colors.length] }}>
@@ -3617,12 +3612,7 @@ const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotal
                   </thead>
                   <tbody>
                     {(() => {
-                      const list = compareData.length > 0 ? compareData : [
-                        { symbol: "RELIANCE", name: "Reliance Industries", current_price: 3021.23, market_cap_cr: 2044000, pe_ratio: 27.6, roce_pct: 12.4, debt_to_equity: 0.34, rsi_14: 56.4 },
-                        { symbol: "LT", name: "Larsen & Toubro", current_price: 3712.45, market_cap_cr: 510000, pe_ratio: 34.4, roce_pct: 18.2, debt_to_equity: 0.82, rsi_14: 58.2 },
-                        { symbol: "TCS", name: "Tata Consultancy Services", current_price: 4250.00, market_cap_cr: 1540000, pe_ratio: 33.5, roce_pct: 52.8, debt_to_equity: 0.00, rsi_14: 62.1 },
-                        { symbol: "HDFCBANK", name: "HDFC Bank", current_price: 1640.00, market_cap_cr: 1250000, pe_ratio: 18.9, roce_pct: 16.8, debt_to_equity: "N/A", rsi_14: 49.2 },
-                      ];
+                      const list = compareData;
                       return (
                         <>
                           <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -3661,7 +3651,7 @@ const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotal
                             <td style={{ padding: "8px 14px", color: "var(--text-muted)" }}>Debt to Equity</td>
                             {list.map((c: any) => (
                               <td key={c.symbol} style={{ padding: "8px 14px" }}>
-                                {typeof c.debt_to_equity === "number" ? `${c.debt_to_equity.toFixed(2)}x` : (c.debt_to_equity || "0.00x")}
+                                {typeof c.debt_to_equity === "number" ? `${c.debt_to_equity.toFixed(2)}x` : (c.debt_to_equity ?? "N/A")}
                               </td>
                             ))}
                           </tr>
@@ -3669,7 +3659,7 @@ const invested = portfolioTotals?.total_invested != null ? Number(portfolioTotal
                             <td style={{ padding: "8px 14px", color: "var(--text-muted)" }}>RSI (14-Day)</td>
                             {list.map((c: any) => (
                               <td key={c.symbol} style={{ padding: "8px 14px" }}>
-                                {c.rsi_14 || 55.0}
+                                {c.rsi_14 ?? "N/A"}
                               </td>
                             ))}
                           </tr>
