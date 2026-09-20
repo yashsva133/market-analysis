@@ -23,26 +23,34 @@ class ScenarioEngine:
     ) -> Dict[str, Any]:
         """Produce the 5 structured scenarios grounded in the forecast distribution."""
         q = forecast_distribution
-        q10 = q.get("q10", current_price * 0.92)
-        q05 = q.get("q05", q10 * 0.97)
-        q25 = q.get("q25", q10 * 1.04)
-        q50 = q.get("q50", current_price)
-        q40 = q.get("q40", q50 * 0.98)
-        q60 = q.get("q60", q50 * 1.02)
-        q75 = q.get("q75", q50 * 1.06)
-        q90 = q.get("q90", current_price * 1.10)
-        q95 = q.get("q95", q90 * 1.03)
+        required_quantiles = ("q05", "q10", "q25", "q40", "q50", "q60", "q75", "q90", "q95")
+        missing = [k for k in required_quantiles if q.get(k) is None]
+        if missing:
+            raise ValueError(
+                "DATA_UNAVAILABLE: forecast distribution is missing quantiles "
+                f"{missing}. No synthetic quantile is substituted for scenario generation."
+            )
+        q05 = q["q05"]
+        q10 = q["q10"]
+        q25 = q["q25"]
+        q40 = q["q40"]
+        q50 = q["q50"]
+        q60 = q["q60"]
+        q75 = q["q75"]
+        q90 = q["q90"]
+        q95 = q["q95"]
 
         def ret(p):
             return round(((p - current_price) / current_price) * 100.0, 2)
 
-        # Context features
-        vix = float(features.get("india_vix", 13.5))
-        rsi = float(features.get("rsi_14", 50.0))
-        pe = float(features.get("pe_ratio", 22.0))
-        rev_growth = float(features.get("revenue_growth_yoy", 12.0))
-        sec_str = float(features.get("sector_relative_strength_20d", 1.0))
-        critical_events = int(features.get("events_critical_count_90d", 0))
+        # Context features — only real values are used; missing features render as N/A.
+        def _f(key: str):
+            v = features.get(key)
+            return float(v) if v is not None else None
+
+        vix = _f("india_vix")
+        rev_growth = _f("revenue_growth_yoy")
+        sec_str = _f("sector_relative_strength_20d")
 
         # 1. SEVERE BEAR
         q15 = round((q10 + q05) / 2.0, 2)
@@ -97,8 +105,8 @@ class ScenarioEngine:
             "probability_mass_pct": 50.0,
             "supporting_model_evidence": f"Central modal interval around median Q50 ₹{q50} ({ret(q50):+0.2f}% expected drift over {horizon_days} trading days).",
             "assumptions": [
-                f"Revenue growth tracks historical {rev_growth}% pace",
-                f"India VIX remains in range ({vix} ± 3.0)",
+                f"Revenue growth tracks historical {rev_growth}% pace" if rev_growth is not None else "Revenue growth trend unavailable (no real fundamental data)",
+                f"India VIX remains in range ({vix} ± 3.0)" if vix is not None else "India VIX level unavailable (no real market regime data)",
                 "No unexpected corporate governance or regulatory disruptions",
             ],
             "risk_factors": [
@@ -118,7 +126,7 @@ class ScenarioEngine:
             "supporting_model_evidence": f"Upper quartile expansion (₹{q75}–₹{q90}), supported by positive order momentum and sector tailwinds.",
             "assumptions": [
                 "Earnings beat estimates with EBITDA margin expansion",
-                f"Sector outperformance continues (current relative strength: {sec_str:+.1f}%)",
+                f"Sector outperformance continues (current relative strength: {sec_str:+.1f}%)" if sec_str is not None else "Sector relative strength unavailable (no real sector benchmark data)",
                 "Institutional accumulation sustains high relative volume",
             ],
             "risk_factors": [

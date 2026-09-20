@@ -151,9 +151,12 @@ class ScenarioOrchestrator:
         stress_tests = RiskEngine.run_stress_tests(current_price)
 
         # 8. Comparable Events (§37, §38)
+        # Only real ingested historical events are used; no fabricated event
+        # database is substituted when none match.
         comparables = ComparableEventEngine.find_comparables(
             event_type="ORDER_WIN" if "CAPITAL" in (sector_name or "").upper() else "RESULTS_BEAT",
             sector=sector_name,
+            events=events,
         )
 
         # 9. Data Quality Assessment (§124)

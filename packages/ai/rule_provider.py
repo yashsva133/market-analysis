@@ -116,7 +116,9 @@ class RuleProvider(LLMProvider):
             "currency": "INR" if amount else None,
             "facts": [],
             "unknowns": ["Execution timeline not verified", "Margin not disclosed"],
-            "confidence": 0.95,
+            # Deterministic rule extraction has no calibrated confidence; it is
+            # reported as None rather than a fabricated numeric score.
+            "confidence": None,
         }
 
         if amount:
