@@ -1,4 +1,4 @@
-"""Tests for RAG Deep Research evidence grounding (FACT, INFERENCE, UNKNOWN)."""
+"""Tests for RAG Deep Research evidence grounding (FACT-only findings, explicit gaps)."""
 import pytest
 import uuid
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ from packages.schemas.taxonomy import EventTaxonomy, ImportanceClass
 
 @pytest.mark.asyncio
 async def test_deep_research_grounded_evidence():
-    """Verify deep research produces evidence-backed findings distinguishing FACT, INFERENCE, and UNKNOWN."""
+    """Verify deep research reports only ingested facts and marks missing sections explicitly."""
     company_id = uuid.uuid4()
     company = Company(
         id=company_id,
@@ -54,7 +54,7 @@ async def test_deep_research_grounded_evidence():
     )
 
     mock_db = AsyncMock()
-    
+
     async def mock_execute(query):
         q_str = str(query)
         res = MagicMock()
@@ -82,13 +82,43 @@ async def test_deep_research_grounded_evidence():
 
     assert report.company_name == "Reliance Industries Limited"
     assert report.isin == "INE002A01018"
-    assert len(report.grounded_findings) >= 3
 
+    # Findings contain only real ingested facts — no fabricated INFERENCE/UNKNOWN entries
+    assert len(report.grounded_findings) >= 1
     categories = {f["classification"] for f in report.grounded_findings}
     assert "FACT" in categories
-    assert "INFERENCE" in categories
-    assert "UNKNOWN" in categories
+    assert "INFERENCE" not in categories
+    assert "UNKNOWN" not in categories
 
     fact_entry = next(f for f in report.grounded_findings if f["classification"] == "FACT")
     assert fact_entry["evidence_page"] == 3
     assert "120000000000" in fact_entry["statement"]
+
+    # Sections without ingested evidence state the gap instead of inventing content
+    assert "No ingested evidence" in report.products_and_capacity
+    assert "No ingested evidence" in report.competitive_landscape
+
+    # Material events come from the ingested event stream only
+    assert len(report.material_corporate_events) == 1
+    assert report.material_corporate_events[0]["headline"] == event.headline
+
+
+@pytest.mark.asyncio
+async def test_deep_research_unknown_symbol_rejected():
+    """Unknown symbols must 404 — no report is generated for a fabricated company."""
+    from fastapi import HTTPException
+
+    mock_db = AsyncMock()
+
+    async def mock_execute(query):
+        res = MagicMock()
+        res.scalars.return_value.all.return_value = []
+        res.scalar_one_or_none.return_value = None
+        return res
+
+    mock_db.execute = AsyncMock(side_effect=mock_execute)
+
+    request = ResearchQueryRequest(symbol="NOTASTOCK")
+    with pytest.raises(HTTPException) as exc_info:
+        await conduct_deep_research(request, db=mock_db)
+    assert exc_info.value.status_code == 404

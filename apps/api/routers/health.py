@@ -34,34 +34,23 @@ async def health_check():
 
 @router.get("/sources/health")
 async def get_source_health(db: AsyncSession = Depends(get_db)):
-    """Returns diagnostic health metrics for all configured data sources."""
-    try:
-        res = await db.execute(select(SourceHealth))
-        rows = res.scalars().all()
-        return [
-            {
-                "id": str(r.id),
-                "source_id": r.source_id,
-                "status": r.status,
-                "consecutive_failures": r.consecutive_failures,
-                "last_success_at": r.last_success_at.isoformat() if r.last_success_at else None,
-                "last_latency_ms": r.last_latency_ms,
-                "last_error": r.last_error,
-                "consecutive_successes": r.consecutive_successes,
-                "circuit_breaker_state": r.circuit_breaker_state,
-            }
-            for r in rows
-        ]
-    except Exception as e:
-        logger.debug(f"Database unavailable for source health: {e}")
-        # Return registered default sources
-        return [
-            {"id": "s-1", "source_id": "nse_corp_announcements", "status": "healthy", "consecutive_failures": 0, "circuit_breaker_state": "CLOSED"},
-            {"id": "s-2", "source_id": "bse_corp_announcements", "status": "healthy", "consecutive_failures": 0, "circuit_breaker_state": "CLOSED"},
-            {"id": "s-3", "source_id": "sebi_regulatory_orders", "status": "healthy", "consecutive_failures": 0, "circuit_breaker_state": "CLOSED"},
-            {"id": "s-4", "source_id": "pib_economic_press", "status": "healthy", "consecutive_failures": 0, "circuit_breaker_state": "CLOSED"},
-            {"id": "s-5", "source_id": "company_ir_rss", "status": "healthy", "consecutive_failures": 0, "circuit_breaker_state": "CLOSED"},
-        ]
+    """Returns diagnostic health metrics for all configured data sources. Database failures surface as 503."""
+    res = await db.execute(select(SourceHealth))
+    rows = res.scalars().all()
+    return [
+        {
+            "id": str(r.id),
+            "source_id": r.source_id,
+            "status": r.status,
+            "consecutive_failures": r.consecutive_failures,
+            "last_success_at": r.last_success_at.isoformat() if r.last_success_at else None,
+            "last_latency_ms": r.last_latency_ms,
+            "last_error": r.last_error,
+            "consecutive_successes": r.consecutive_successes,
+            "circuit_breaker_state": r.circuit_breaker_state,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/metrics/summary")

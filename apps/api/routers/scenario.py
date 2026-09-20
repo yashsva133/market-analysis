@@ -152,11 +152,10 @@ async def get_scenario_run(id: str):
     """Retrieve previously executed scenario analysis run by ID."""
     run = _scenario_runs_cache.get(id)
     if not run:
-        # Fallback to re-running for standard symbols if not in ephemeral memory
-        parts = id.split("_")
-        sym = parts[1] if len(parts) > 1 else "RELIANCE"
-        run = global_scenario_orchestrator.run_full_scenario_analysis(symbol=sym)
-        _scenario_runs_cache[id] = run
+        raise HTTPException(
+            status_code=404,
+            detail="Scenario run not found. Runs are cached in memory after /scenario/analyze; re-run the analysis.",
+        )
     return run
 
 
@@ -278,31 +277,11 @@ async def get_quant_events(event_type: str = Query(default="ORDER_WIN"), sector:
 @router.get("/quant/backtests")
 @router.get("/api/quant/backtests")
 async def get_quant_backtests():
-    """Retrieve pre-computed deterministic backtest records and factor performance."""
+    """Backtest records are not persisted yet; report that honestly instead of serving canned stats."""
     return {
         "status": "ok",
-        "active_backtests": [
-            {
-                "strategy": "EVENT_STUDY_ORDER_WIN",
-                "sample_events": 42,
-                "holding_days": 10,
-                "win_rate_pct": 71.4,
-                "sharpe_ratio": 1.84,
-                "sortino_ratio": 2.65,
-                "max_drawdown_pct": 3.20,
-                "cost_model": "0.10% STT/fees + 0.05% slippage",
-            },
-            {
-                "strategy": "RSI_OVERSOLD_REBOUND",
-                "sample_events": 85,
-                "holding_days": 5,
-                "win_rate_pct": 63.5,
-                "sharpe_ratio": 1.45,
-                "sortino_ratio": 1.95,
-                "max_drawdown_pct": 4.10,
-                "cost_model": "0.10% fees + 0.05% slippage",
-            },
-        ],
+        "active_backtests": [],
+        "note": "No backtest runs are persisted in this deployment. Execute a study via the quant lab and persist results to serve them here.",
     }
 
 

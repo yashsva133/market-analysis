@@ -67,28 +67,10 @@ class FreeMarketDataProvider(MarketDataProvider):
                     "source": "FREE_YFINANCE",
                 }
         except Exception as e:
-            logger.debug(f"Free provider online fetch failed for {ticker}: {e}. Falling back to baseline simulation.")
+            logger.debug(f"Free provider online fetch failed for {ticker}: {e}. Reporting unavailable.")
 
-        # Deterministic offline fallback based on symbol hash for reliable zero-budget operation
-        seed = sum(ord(c) for c in security.symbol)
-        base_price = 500.0 + (seed % 2500)
-        daily_fluctuation = (seed % 15) - 7.0
-        last_price = round(base_price + daily_fluctuation, 2)
-        change_pct = round((daily_fluctuation / base_price) * 100, 2)
-
-        return {
-            "security_id": str(security.id),
-            "symbol": security.symbol,
-            "exchange": security.exchange,
-            "last_price": last_price,
-            "change_pct": change_pct,
-            "day_high": round(last_price * 1.02, 2),
-            "day_low": round(last_price * 0.98, 2),
-            "volume": 1250000 + (seed * 100),
-            "vwap": last_price,
-            "as_of": now.isoformat(),
-            "source": "FREE_OFFLINE_ESTIMATE",
-        }
+        # Feed unreachable: no quote is served rather than a hash-simulated price.
+        return None
 
     async def get_quotes(self, securities: List[Security]) -> Dict[str, Dict[str, Any]]:
         results = {}
@@ -256,23 +238,27 @@ class FreeMarketDataProvider(MarketDataProvider):
         }
 
     async def get_live_indices(self) -> List[Dict[str, Any]]:
-        """Fetches live quotes for major Indian indices (^NSEI, ^BSESN, ^NSEBANK, ^INDIAVIX) with fallback."""
+        """Fetches live quotes for major Indian indices (^NSEI, ^BSESN, ^NSEBANK, ^INDIAVIX).
+
+        Only indices with a live price from the upstream feed are returned —
+        no hardcoded default values are substituted.
+        """
         now = datetime.now(timezone.utc)
         indices_config = [
-            {"id": "nifty50", "name": "NIFTY 50", "ticker": "^NSEI", "default_price": 23346.40, "default_prev": 23270.60, "note": None},
-            {"id": "niftybank", "name": "NIFTY BANK", "ticker": "^NSEBANK", "default_price": 56358.70, "default_prev": 56055.75, "note": None},
-            {"id": "indiavix", "name": "INDIA VIX", "ticker": "^INDIAVIX", "default_price": 11.38, "default_prev": 12.29, "note": "LOW VOLATILITY REGIME"},
-            {"id": "sensex", "name": "BSE SENSEX", "ticker": "^BSESN", "default_price": 74294.96, "default_prev": 74336.50, "note": None},
+            {"id": "nifty50", "name": "NIFTY 50", "ticker": "^NSEI", "note": None},
+            {"id": "niftybank", "name": "NIFTY BANK", "ticker": "^NSEBANK", "note": None},
+            {"id": "indiavix", "name": "INDIA VIX", "ticker": "^INDIAVIX", "note": None},
+            {"id": "sensex", "name": "BSE SENSEX", "ticker": "^BSESN", "note": None},
         ]
 
+        results: List[Dict[str, Any]] = []
         try:
             import httpx
             async with httpx.AsyncClient(timeout=4.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
-                results = []
                 for idx in indices_config:
                     ticker = idx["ticker"]
-                    price = idx["default_price"]
-                    prev_close = idx["default_prev"]
+                    price = None
+                    prev_close = None
                     try:
                         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=1d"
                         resp = await client.get(url)
@@ -287,7 +273,10 @@ class FreeMarketDataProvider(MarketDataProvider):
                     except Exception:
                         pass
 
-                    chg = price - prev_close
+                    if price is None:
+                        continue
+
+                    chg = price - prev_close if prev_close else 0.0
                     pct = (chg / prev_close * 100) if prev_close else 0.0
                     up = chg >= 0
                     sign = "+" if up else ""
@@ -307,30 +296,8 @@ class FreeMarketDataProvider(MarketDataProvider):
                     })
                 return results
         except Exception as e:
-            logger.warning(f"Error fetching live indices: {e}")
-            results = []
-            for idx in indices_config:
-                price = idx["default_price"]
-                prev_close = idx["default_prev"]
-                chg = price - prev_close
-                pct = (chg / prev_close * 100) if prev_close else 0.0
-                up = chg >= 0
-                sign = "+" if up else ""
-                results.append({
-                    "id": idx["id"],
-                    "name": idx["name"],
-                    "ticker": idx["ticker"],
-                    "price": price,
-                    "val": f"{price:,.2f}",
-                    "change": round(chg, 2),
-                    "change_pct": round(pct, 2),
-                    "chg": f"{sign}{chg:,.2f} ({sign}{pct:.2f}%)",
-                    "up": up,
-                    "note": idx["note"],
-                    "prev_close": prev_close,
-                    "as_of": now.isoformat(),
-                })
-            return results
+            logger.warning(f"Error fetching live indices: {e}. No substitute index values are served.")
+            return []
 
     async def get_live_market_breadth(self) -> Dict[str, Any]:
         """Fetches live market-wide advance/decline breadth & market cap from NSE India."""
@@ -355,18 +322,20 @@ class FreeMarketDataProvider(MarketDataProvider):
                     if not n500:
                         n500 = next((idx for idx in data if "500" in idx.get("index", "")), None)
 
-                    if n500:
-                        adv = int(n500.get("advances", 364))
-                        dec = int(n500.get("declines", 135))
-                        unch = int(n500.get("unchanged", 2))
-                        ratio = round(adv / dec, 2) if dec > 0 else 2.5
+                    if n500 and n500.get("advances") is not None and n500.get("declines") is not None:
+                        adv = int(n500.get("advances"))
+                        dec = int(n500.get("declines"))
+                        unch = int(n500.get("unchanged") or 0)
+                        ratio = round(adv / dec, 2) if dec > 0 else None
 
                         regime = (
                             "TRENDING_UP / LOW_VOLATILITY (RISK-ON)"
-                            if ratio >= 1.5
+                            if ratio is not None and ratio >= 1.5
                             else "TRENDING_DOWN / ELEVATED_RISK (DEFENSIVE)"
-                            if ratio <= 0.7
+                            if ratio is not None and ratio <= 0.7
                             else "SIDEWAYS_CONSOLIDATION / NEUTRAL"
+                            if ratio is not None
+                            else None
                         )
 
                         return {
@@ -378,30 +347,28 @@ class FreeMarketDataProvider(MarketDataProvider):
                             "advance_decline_ratio": ratio,
                             "market_regime": regime,
                             "benchmark_index": "NIFTY 500",
-                            "index_last": float(n500.get("last", 23346.4)),
-                            "index_change_pct": float(n500.get("percentChange", 0.33)),
-                            "total_market_cap_lac_cr": 480.51,
-                            "total_market_cap_usd_trillion": 5.02,
+                            "index_last": float(n500.get("last")) if n500.get("last") is not None else None,
+                            "index_change_pct": float(n500.get("percentChange")) if n500.get("percentChange") is not None else None,
                             "as_of": now.isoformat(),
                         }
         except Exception as e:
-            logger.debug(f"Live NSE market breadth query failed: {e}. Using calibrated fallback.")
+            logger.debug(f"Live NSE market breadth query failed: {e}. Reporting unavailable.")
 
-        # Calibrated fallback matching last official market close
+        # Feed unreachable: report the gap honestly instead of a fabricated
+        # "calibrated fallback" snapshot.
         return {
-            "status": "CALIBRATED_FALLBACK",
-            "advances": 364,
-            "declines": 135,
-            "unchanged": 2,
-            "total_tracked": 501,
-            "advance_decline_ratio": 2.70,
-            "market_regime": "TRENDING_UP / LOW_VOLATILITY (RISK-ON)",
+            "status": "UNAVAILABLE",
+            "advances": None,
+            "declines": None,
+            "unchanged": None,
+            "total_tracked": 0,
+            "advance_decline_ratio": None,
+            "market_regime": None,
             "benchmark_index": "NIFTY 500",
-            "index_last": 23346.40,
-            "index_change_pct": 0.33,
-            "total_market_cap_lac_cr": 480.51,
-            "total_market_cap_usd_trillion": 5.02,
+            "index_last": None,
+            "index_change_pct": None,
             "as_of": now.isoformat(),
+            "note": "Live NSE breadth feed unreachable. No substitute breadth snapshot is served.",
         }
 
     async def get_live_quote(self, symbol: str) -> Optional[Any]:

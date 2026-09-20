@@ -55,18 +55,10 @@ async def get_model_metrics(id: str):
         "status": model["status"],
         "metrics": model.get("metrics", {}),
         "gating_passed": model.get("gating_passed", True),
-        "calibration_deciles": [
-            {"bucket": "0–10%", "predicted_pct": 5.2, "actual_rate_pct": 4.9, "count": 280},
-            {"bucket": "10–20%", "predicted_pct": 14.8, "actual_rate_pct": 15.3, "count": 340},
-            {"bucket": "20–30%", "predicted_pct": 25.1, "actual_rate_pct": 24.2, "count": 420},
-            {"bucket": "30–40%", "predicted_pct": 35.4, "actual_rate_pct": 36.1, "count": 510},
-            {"bucket": "40–50%", "predicted_pct": 45.0, "actual_rate_pct": 44.2, "count": 580},
-            {"bucket": "50–60%", "predicted_pct": 54.9, "actual_rate_pct": 55.6, "count": 620},
-            {"bucket": "60–70%", "predicted_pct": 65.2, "actual_rate_pct": 63.8, "count": 590},
-            {"bucket": "70–80%", "predicted_pct": 74.8, "actual_rate_pct": 73.1, "count": 480},
-            {"bucket": "80–90%", "predicted_pct": 84.7, "actual_rate_pct": 82.5, "count": 390},
-            {"bucket": "90–100%", "predicted_pct": 94.2, "actual_rate_pct": 91.8, "count": 210},
-        ],
+        # Calibration deciles require an evaluated out-of-sample run; none is
+        # persisted, so none is served.
+        "calibration_deciles": [],
+        "note": "Calibration deciles are populated only after an out-of-sample evaluation run is persisted for this model.",
     }
 
 

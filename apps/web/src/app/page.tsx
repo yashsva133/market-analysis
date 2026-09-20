@@ -97,315 +97,43 @@ interface SourceHealthItem {
 }
 
 // Fallback Demo Data (Explicitly tagged)
+// No demo data: every panel renders an explicit empty state until the backend
+// supplies real ingested data. Fabricated sample content is never substituted.
 const DEMO_METRICS: MetricSummary = {
-  sources_healthy: 6,
-  sources_degraded: 1,
+  sources_healthy: 0,
+  sources_degraded: 0,
   sources_failed: 0,
   sources_stale: 0,
-  items_fetched_today: 142,
-  new_events: 18,
-  critical_events: 3,
-  high_events: 8,
-  ai_calls: 18,
-  ai_cache_hits: 12,
-  alerts_sent: 3,
+  items_fetched_today: 0,
+  new_events: 0,
+  critical_events: 0,
+  high_events: 0,
+  ai_calls: 0,
+  ai_cache_hits: 0,
+  alerts_sent: 0,
   failed_jobs: 0,
-  timestamp: new Date().toISOString(),
+  timestamp: "",
 };
 
-const DEMO_EVENTS = [
-  {
-    id: "ev-1",
-    company_name: "Larsen & Toubro Limited",
-    symbol: "LT",
-    bse_code: "500510",
-    event_type: "ORDER_WIN",
-    importance: "CRITICAL",
-    headline: "L&T Construction bags Mega order worth ₹8,500 Cr for high-speed rail electrification",
-    amount: "₹8,500 Cr",
-    announcement_time: "19 Sep, 18:30 IST",
-    source: "NSE Primary Filing",
-    source_url: "https://www.nseindia.com/corporate-disclosures",
-    why_flagged: [
-      "Stated contract value exceeds ₹5,000 Cr absolute critical materiality threshold",
-      "Binding order from Ministry of Railways, 36-month timeline",
-      "Order represents ~3.8% of consolidated annual revenue",
-    ],
-    unknowns: ["Specific milestone payment schedule not disclosed", "Subcontracting margin not stated"],
-    reaction: "+4.8% Day Move | 2.9x 20D Volume",
-    financial_context: "Baseline LTM Revenue: ₹2,21,000 Cr | Current Order Book: ₹4,75,000 Cr",
-    is_demo: true,
-  },
-  {
-    id: "ev-2",
-    company_name: "Tata Consultancy Services Limited",
-    symbol: "TCS",
-    bse_code: "532540",
-    event_type: "ORDER_WIN",
-    importance: "HIGH",
-    headline: "TCS expands strategic partnership with European Tier-1 Bank in a $450M multi-year deal",
-    amount: "₹3,750 Cr ($450M)",
-    announcement_time: "19 Sep, 17:15 IST",
-    source: "BSE Corporate Announcement",
-    source_url: "https://www.bseindia.com/corporates/ann.html",
-    why_flagged: [
-      "Major international banking contract renewal and scope expansion",
-      "Direct positive impact on BFSI vertical forward pipeline",
-    ],
-    unknowns: ["Specific annual run-rate transition curve"],
-    reaction: "+1.9% Day Move | 1.4x 20D Volume",
-    financial_context: "Baseline LTM Revenue: ₹2,45,000 Cr | Operating Margin: 26.2%",
-    is_demo: true,
-  },
-  {
-    id: "ev-3",
-    company_name: "Reliance Industries Limited",
-    symbol: "RELIANCE",
-    bse_code: "500325",
-    event_type: "CAPEX",
-    importance: "HIGH",
-    headline: "Reliance Green Energy commissions phase-1 gigafactory unit for solar PV module fabrication",
-    amount: "₹12,000 Cr",
-    announcement_time: "19 Sep, 16:45 IST",
-    source: "NSE Primary Filing",
-    source_url: "https://www.nseindia.com/corporate-disclosures",
-    why_flagged: [
-      "Commercial production milestone under Solar Giga-complex investment plan",
-      "Direct beneficiary of Production Linked Incentive (PLI) tranche-II",
-    ],
-    unknowns: ["Ramp-up schedule to full 10GW nameplate capacity"],
-    reaction: "+2.2% Day Move | 1.8x 20D Volume",
-    financial_context: "Annual Capex Budget: ₹1,35,000 Cr",
-    is_demo: true,
-  },
-];
+const DEMO_EVENTS: any[] = [];
+const DEMO_NEWS: any[] = [];
+const DEMO_CALENDAR: any[] = [];
+const DEMO_CATALYSTS: any[] = [];
+const DEMO_COMPANIES: any[] = [];
+const DEMO_SOURCES: SourceHealthItem[] = [];
 
-const DEMO_COMPANIES = [
-  { id: "c-1", name: "Reliance Industries Limited", isin: "INE002A01018", symbol: "RELIANCE", bse_code: "500325", sector: "Energy & Conglomerate", industry: "Refining / Telecom / Retail", market_cap: "₹20,44,000 Cr", revenue: "₹9,00,000 Cr", pat: "₹74,000 Cr", pe: "27.6", roce: "12.4%", price: "₹3,021.23", rsi: "56.4", sma50: "₹2,980.00", status: "ACTIVE", is_demo: false },
-  { id: "c-2", name: "Tata Consultancy Services Limited", isin: "INE467B01029", symbol: "TCS", bse_code: "532540", sector: "Information Technology", industry: "Software & Consulting", market_cap: "₹15,40,000 Cr", revenue: "₹2,45,000 Cr", pat: "₹46,000 Cr", pe: "33.5", roce: "52.8%", price: "₹4,250.00", rsi: "62.1", sma50: "₹4,180.00", status: "ACTIVE", is_demo: false },
-  { id: "c-3", name: "HDFC Bank Limited", isin: "INE040A01034", symbol: "HDFCBANK", bse_code: "500180", sector: "Financial Services", industry: "Private Commercial Banking", market_cap: "₹12,50,000 Cr", revenue: "₹1,85,000 Cr", pat: "₹64,200 Cr", pe: "18.9", roce: "16.8%", price: "₹1,640.00", rsi: "49.2", sma50: "₹1,625.00", status: "ACTIVE", is_demo: false },
-  { id: "c-4", name: "Infosys Limited", isin: "INE009A01021", symbol: "INFY", bse_code: "500209", sector: "Information Technology", industry: "Software & Consulting", market_cap: "₹7,80,000 Cr", revenue: "₹1,53,000 Cr", pat: "₹26,200 Cr", pe: "29.8", roce: "41.2%", price: "₹1,885.00", rsi: "54.1", sma50: "₹1,860.00", status: "ACTIVE", is_demo: false },
-  { id: "c-5", name: "ICICI Bank Limited", isin: "INE090A01021", symbol: "ICICIBANK", bse_code: "532174", sector: "Financial Services", industry: "Private Commercial Banking", market_cap: "₹8,40,000 Cr", revenue: "₹1,60,000 Cr", pat: "₹44,000 Cr", pe: "17.8", roce: "17.4%", price: "₹1,220.00", rsi: "58.7", sma50: "₹1,190.00", status: "ACTIVE", is_demo: false },
-  { id: "c-6", name: "Larsen & Toubro Limited", isin: "INE018A01030", symbol: "LT", bse_code: "500510", sector: "Capital Goods & Infra", industry: "Heavy Engineering / Defense / EPC", market_cap: "₹5,10,000 Cr", revenue: "₹2,21,000 Cr", pat: "₹14,800 Cr", pe: "34.4", roce: "18.2%", price: "₹3,712.45", rsi: "58.2", sma50: "₹3,650.00", status: "ACTIVE", is_demo: false },
-  { id: "c-7", name: "Bharti Airtel Limited", isin: "INE397D01024", symbol: "BHARTIARTL", bse_code: "532454", sector: "Telecommunications", industry: "Telecom Services & Data", market_cap: "₹9,20,000 Cr", revenue: "₹1,50,000 Cr", pat: "₹11,500 Cr", pe: "42.1", roce: "15.6%", price: "₹1,893.30", rsi: "64.8", sma50: "₹1,860.00", status: "ACTIVE", is_demo: false, aliases: ["AIRTEL", "BHARTI"] },
-  { id: "c-8", name: "State Bank of India", isin: "INE062A01020", symbol: "SBIN", bse_code: "500112", sector: "Financial Services", industry: "Public Sector Banking", market_cap: "₹7,20,000 Cr", revenue: "₹2,20,000 Cr", pat: "₹67,000 Cr", pe: "10.7", roce: "18.5%", price: "₹810.00", rsi: "51.3", sma50: "₹795.00", status: "ACTIVE", is_demo: false },
-  { id: "c-9", name: "ITC Limited", isin: "INE154A01025", symbol: "ITC", bse_code: "500875", sector: "Consumer Goods", industry: "FMCG, Cigarettes, Hotels", market_cap: "₹6,10,000 Cr", revenue: "₹72,000 Cr", pat: "₹20,500 Cr", pe: "29.8", roce: "38.2%", price: "₹490.00", rsi: "47.9", sma50: "₹482.00", status: "ACTIVE", is_demo: false },
-  { id: "c-10", name: "Hindustan Unilever Limited", isin: "INE030A01027", symbol: "HINDUNILVR", bse_code: "500696", sector: "Consumer Goods", industry: "FMCG & Personal Care", market_cap: "₹6,40,000 Cr", revenue: "₹61,000 Cr", pat: "₹10,400 Cr", pe: "61.5", roce: "29.4%", price: "₹2,720.00", rsi: "52.0", sma50: "₹2,680.00", status: "ACTIVE", is_demo: false },
-  { id: "c-11", name: "Bajaj Finance Limited", isin: "INE296A01024", symbol: "BAJFINANCE", bse_code: "500034", sector: "Financial Services", industry: "Consumer & SME Lending", market_cap: "₹4,40,000 Cr", revenue: "₹54,000 Cr", pat: "₹14,400 Cr", pe: "30.5", roce: "19.8%", price: "₹7,150.00", rsi: "46.5", sma50: "₹7,050.00", status: "ACTIVE", is_demo: false },
-  { id: "c-12", name: "Kotak Mahindra Bank Limited", isin: "INE237A01028", symbol: "KOTAKBANK", bse_code: "500247", sector: "Financial Services", industry: "Private Commercial Banking", market_cap: "₹3,55,000 Cr", revenue: "₹62,000 Cr", pat: "₹18,000 Cr", pe: "19.7", roce: "15.2%", price: "₹1,790.00", rsi: "48.1", sma50: "₹1,770.00", status: "ACTIVE", is_demo: false },
-  { id: "c-13", name: "Maruti Suzuki India Limited", isin: "INE585B01010", symbol: "MARUTI", bse_code: "532500", sector: "Automobile", industry: "Passenger Vehicles", market_cap: "₹3,90,000 Cr", revenue: "₹1,40,000 Cr", pat: "₹13,200 Cr", pe: "29.5", roce: "20.1%", price: "₹12,400.00", rsi: "55.3", sma50: "₹12,100.00", status: "ACTIVE", is_demo: false },
-  { id: "c-14", name: "Axis Bank Limited", isin: "INE238A01034", symbol: "AXISBANK", bse_code: "532215", sector: "Financial Services", industry: "Private Commercial Banking", market_cap: "₹3,80,000 Cr", revenue: "₹1,10,000 Cr", pat: "₹26,000 Cr", pe: "14.6", roce: "17.1%", price: "₹1,230.00", rsi: "53.4", sma50: "₹1,200.00", status: "ACTIVE", is_demo: false },
-  { id: "c-15", name: "Sun Pharmaceutical Industries Limited", isin: "INE044A01036", symbol: "SUNPHARMA", bse_code: "524715", sector: "Pharmaceuticals", industry: "Formulations & API", market_cap: "₹4,30,000 Cr", revenue: "₹48,500 Cr", pat: "₹9,800 Cr", pe: "43.9", roce: "18.9%", price: "₹1,810.00", rsi: "63.2", sma50: "₹1,760.00", status: "ACTIVE", is_demo: false },
-  { id: "c-16", name: "Titan Company Limited", isin: "INE280A01028", symbol: "TITAN", bse_code: "500114", sector: "Consumer Discretionary", industry: "Jewelry, Watches, Eyewear", market_cap: "₹3,15,000 Cr", revenue: "₹46,000 Cr", pat: "₹3,500 Cr", pe: "90.0", roce: "28.5%", price: "₹3,550.00", rsi: "59.0", sma50: "₹3,480.00", status: "ACTIVE", is_demo: false },
-  { id: "c-17", name: "Tata Motors Limited", isin: "INE155A01022", symbol: "TATAMOTORS", bse_code: "500570", sector: "Automobile", industry: "Commercial & EV Passenger Cars", market_cap: "₹3,60,000 Cr", revenue: "₹4,37,000 Cr", pat: "₹31,800 Cr", pe: "11.3", roce: "22.4%", price: "₹980.00", rsi: "51.8", sma50: "₹965.00", status: "ACTIVE", is_demo: false, aliases: ["TML", "TATA MOTORS"] },
-  { id: "c-18", name: "NTPC Limited", isin: "INE733E01010", symbol: "NTPC", bse_code: "532555", sector: "Energy & Utilities", industry: "Thermal & Renewable Power", market_cap: "₹4,10,000 Cr", revenue: "₹1,75,000 Cr", pat: "₹21,000 Cr", pe: "19.5", roce: "13.2%", price: "₹420.00", rsi: "61.0", sma50: "₹408.00", status: "ACTIVE", is_demo: false },
-  { id: "c-19", name: "Oil & Natural Gas Corporation Limited", isin: "INE213A01029", symbol: "ONGC", bse_code: "500312", sector: "Energy", industry: "Oil & Gas Exploration", market_cap: "₹3,70,000 Cr", revenue: "₹6,30,000 Cr", pat: "₹40,000 Cr", pe: "9.2", roce: "14.5%", price: "₹295.00", rsi: "54.7", sma50: "₹290.00", status: "ACTIVE", is_demo: false },
-  { id: "c-20", name: "Power Grid Corporation of India Limited", isin: "INE752E01010", symbol: "POWERGRID", bse_code: "532898", sector: "Energy & Utilities", industry: "Power Transmission Network", market_cap: "₹3,15,000 Cr", revenue: "₹46,000 Cr", pat: "₹15,500 Cr", pe: "20.3", roce: "16.1%", price: "₹340.00", rsi: "57.8", sma50: "₹332.00", status: "ACTIVE", is_demo: false },
-  { id: "c-21", name: "Adani Enterprises Limited", isin: "INE423A01024", symbol: "ADANIENT", bse_code: "512599", sector: "Conglomerate", industry: "Incubation, Airports, Energy", market_cap: "₹3,50,000 Cr", revenue: "₹96,000 Cr", pat: "₹3,200 Cr", pe: "109.0", roce: "11.2%", price: "₹3,050.00", rsi: "50.5", sma50: "₹3,010.00", status: "ACTIVE", is_demo: false, aliases: ["ADANI"] },
-  { id: "c-22", name: "Adani Ports and SEZ Limited", isin: "INE742F01042", symbol: "ADANIPORTS", bse_code: "532921", sector: "Infrastructure & Logistics", industry: "Port Operations & SEZ", market_cap: "₹3,10,000 Cr", revenue: "₹27,000 Cr", pat: "₹8,100 Cr", pe: "38.2", roce: "15.8%", price: "₹1,440.00", rsi: "59.4", sma50: "₹1,410.00", status: "ACTIVE", is_demo: false, aliases: ["APSEZ"] },
-  { id: "c-23", name: "Tata Steel Limited", isin: "INE081A01020", symbol: "TATASTEEL", bse_code: "500470", sector: "Metals & Mining", industry: "Steel Manufacturing", market_cap: "₹1,95,000 Cr", revenue: "₹2,30,000 Cr", pat: "₹4,200 Cr", pe: "46.4", roce: "10.8%", price: "₹155.00", rsi: "48.2", sma50: "₹152.00", status: "ACTIVE", is_demo: false },
-  { id: "c-24", name: "UltraTech Cement Limited", isin: "INE481G01011", symbol: "ULTRACEMCO", bse_code: "532538", sector: "Building Materials", industry: "Grey & White Cement, RMC", market_cap: "₹3,30,000 Cr", revenue: "₹71,000 Cr", pat: "₹7,000 Cr", pe: "47.1", roce: "15.4%", price: "₹11,400.00", rsi: "56.0", sma50: "₹11,150.00", status: "ACTIVE", is_demo: false },
-  { id: "c-25", name: "Mahindra & Mahindra Limited", isin: "INE101A01026", symbol: "M&M", bse_code: "500520", sector: "Automobile", industry: "SUVs, Commercial & Tractors", market_cap: "₹3,75,000 Cr", revenue: "₹1,39,000 Cr", pat: "₹11,300 Cr", pe: "33.2", roce: "21.6%", price: "₹3,020.00", rsi: "64.1", sma50: "₹2,950.00", status: "ACTIVE", is_demo: false },
-  { id: "c-26", name: "Coal India Limited", isin: "INE522F01014", symbol: "COALINDIA", bse_code: "533278", sector: "Energy & Resources", industry: "Coal Mining & Production", market_cap: "₹3,10,000 Cr", revenue: "₹1,42,000 Cr", pat: "₹37,000 Cr", pe: "8.4", roce: "48.5%", price: "₹505.00", rsi: "53.2", sma50: "₹498.00", status: "ACTIVE", is_demo: false },
-  { id: "c-27", name: "Bajaj Finserv Limited", isin: "INE918I01026", symbol: "BAJAJFINSV", bse_code: "532978", sector: "Financial Services", industry: "Insurance & Financial Holdings", market_cap: "₹3,05,000 Cr", revenue: "₹1,10,000 Cr", pat: "₹8,100 Cr", pe: "37.6", roce: "14.2%", price: "₹1,920.00", rsi: "52.3", sma50: "₹1,890.00", status: "ACTIVE", is_demo: false },
-  { id: "c-28", name: "Asian Paints Limited", isin: "INE021A01026", symbol: "ASIANPAINT", bse_code: "500820", sector: "Consumer Goods", industry: "Decorative Paints & Coatings", market_cap: "₹2,80,000 Cr", revenue: "₹35,000 Cr", pat: "₹5,400 Cr", pe: "51.8", roce: "31.4%", price: "₹2,920.00", rsi: "43.5", sma50: "₹2,960.00", status: "ACTIVE", is_demo: false },
-  { id: "c-29", name: "HCL Technologies Limited", isin: "INE860A01027", symbol: "HCLTECH", bse_code: "532281", sector: "Information Technology", industry: "Digital, Engineering & Cloud", market_cap: "₹4,90,000 Cr", revenue: "₹1,10,000 Cr", pat: "₹15,700 Cr", pe: "31.2", roce: "32.1%", price: "₹1,810.00", rsi: "60.4", sma50: "₹1,770.00", status: "ACTIVE", is_demo: false },
-  { id: "c-30", name: "Wipro Limited", isin: "INE075A01022", symbol: "WIPRO", bse_code: "507685", sector: "Information Technology", industry: "IT Services & Consulting", market_cap: "₹2,85,000 Cr", revenue: "₹90,000 Cr", pat: "₹11,000 Cr", pe: "25.9", roce: "18.4%", price: "₹545.00", rsi: "53.8", sma50: "₹535.00", status: "ACTIVE", is_demo: false },
-  { id: "c-31", name: "Tech Mahindra Limited", isin: "INE669C01036", symbol: "TECHM", bse_code: "532755", sector: "Information Technology", industry: "Telecom & Enterprise Software", market_cap: "₹1,65,000 Cr", revenue: "₹52,000 Cr", pat: "₹3,800 Cr", pe: "43.4", roce: "16.2%", price: "₹1,690.00", rsi: "57.5", sma50: "₹1,650.00", status: "ACTIVE", is_demo: false },
-  { id: "c-32", name: "Nestle India Limited", isin: "INE239A01024", symbol: "NESTLEIND", bse_code: "500790", sector: "Consumer Goods", industry: "Food Products & Dairy", market_cap: "₹2,40,000 Cr", revenue: "₹24,000 Cr", pat: "₹3,200 Cr", pe: "75.0", roce: "125.0%", price: "₹2,490.00", rsi: "48.9", sma50: "₹2,480.00", status: "ACTIVE", is_demo: false },
-  { id: "c-33", name: "Grasim Industries Limited", isin: "INE047A01021", symbol: "GRASIM", bse_code: "500300", sector: "Materials & Conglomerate", industry: "Viscose, Chemicals, Paints", market_cap: "₹1,85,000 Cr", revenue: "₹1,30,000 Cr", pat: "₹6,800 Cr", pe: "27.2", roce: "11.5%", price: "₹2,720.00", rsi: "54.2", sma50: "₹2,690.00", status: "ACTIVE", is_demo: false },
-  { id: "c-34", name: "JSW Steel Limited", isin: "INE019A01038", symbol: "JSWSTEEL", bse_code: "500228", sector: "Metals & Mining", industry: "Steel Production & Flat Products", market_cap: "₹2,35,000 Cr", revenue: "₹1,75,000 Cr", pat: "₹8,900 Cr", pe: "26.4", roce: "14.1%", price: "₹965.00", rsi: "50.1", sma50: "₹950.00", status: "ACTIVE", is_demo: false },
-  { id: "c-35", name: "Cupid Limited", isin: "INE509F01011", symbol: "CUPID", bse_code: "530843", sector: "Healthcare & Diagnostics", industry: "Wellness, IVD Diagnostics & FMCG", market_cap: "₹4,100 Cr", revenue: "₹220 Cr", pat: "₹48 Cr", pe: "85.4", roce: "24.5%", price: "₹265.00", rsi: "64.2", sma50: "₹252.00", status: "ACTIVE", is_demo: false },
-  { id: "c-36", name: "Nippon India ETF Nifty BeES", isin: "INF732E01015", symbol: "NIFTYBEES", bse_code: "590108", sector: "ETF & Benchmarks", industry: "NIFTY 50 Benchmark Index ETF", market_cap: "₹35,000 Cr", revenue: "N/A", pat: "N/A", pe: "23.4", roce: "15.0%", price: "₹266.50", rsi: "55.0", sma50: "₹263.00", status: "ACTIVE", is_demo: false },
-  { id: "c-37", name: "Asahi India Glass Limited (AIGL)", isin: "INE439A01020", symbol: "ASAHIINDIA", bse_code: "515030", sector: "Auto Ancillaries & Glass", industry: "Automotive Safety Glass & Float Glass", market_cap: "₹16,500 Cr", revenue: "₹4,200 Cr", pat: "₹380 Cr", pe: "43.2", roce: "19.8%", price: "₹685.40", rsi: "58.4", sma50: "₹670.00", status: "ACTIVE", is_demo: false, aliases: ["AIGL", "ASAHI"] },
-  { id: "c-38", name: "Zomato Limited", isin: "INE758T01015", symbol: "ZOMATO", bse_code: "543320", sector: "Internet & Consumer Tech", industry: "Food Delivery & Quick Commerce (Blinkit)", market_cap: "₹2,45,000 Cr", revenue: "₹12,114 Cr", pat: "₹351 Cr", pe: "95.2", roce: "11.4%", price: "₹280.40", rsi: "61.2", sma50: "₹265.00", status: "ACTIVE", is_demo: false, aliases: ["BLINKIT"] },
-  { id: "c-39", name: "Jio Financial Services Limited", isin: "INE758E01017", symbol: "JIOFIN", bse_code: "543940", sector: "Financial Services", industry: "Non-Banking Financial & Digital Lending", market_cap: "₹2,18,000 Cr", revenue: "₹1,855 Cr", pat: "₹1,605 Cr", pe: "135.8", roce: "4.2%", price: "₹342.10", rsi: "49.6", sma50: "₹338.00", status: "ACTIVE", is_demo: false, aliases: ["JFS"] },
-];
-
-const DEMO_SOURCES: SourceHealthItem[] = [
-  { source_id: "nse-announcements", name: "NSE Corporate Filings", publisher: "NSE India", priority: "P0 (Primary)", status: "healthy", last_success: "Just now", consecutive_failures: 0, last_latency_ms: 145, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "bse-announcements", name: "BSE Corporate Announcements", publisher: "BSE India", priority: "P0 (Primary)", status: "healthy", last_success: "1 min ago", consecutive_failures: 0, last_latency_ms: 180, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "sebi-circulars", name: "SEBI Regulatory Circulars", publisher: "SEBI", priority: "P0 (Primary)", status: "healthy", last_success: "3 mins ago", consecutive_failures: 0, last_latency_ms: 210, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "pib-press-releases", name: "Press Information Bureau", publisher: "Govt of India", priority: "P1 (Govt)", status: "healthy", last_success: "5 mins ago", consecutive_failures: 0, last_latency_ms: 95, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "rbi-notifications", name: "Reserve Bank Notifications", publisher: "RBI", priority: "P1 (Regulator)", status: "healthy", last_success: "8 mins ago", consecutive_failures: 0, last_latency_ms: 115, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "google-news-rss", name: "Financial News Syndication", publisher: "Public RSS", priority: "P2 (Secondary)", status: "degraded", last_success: "15 mins ago", consecutive_failures: 1, last_latency_ms: 540, error_message: "Intermittent upstream timeout", retry_budget_remaining: 4 },
-  { source_id: "free-market-data", name: "Market Price Adapter (Free)", publisher: "NSE Bhavcopy / Yahoo", priority: "P3 (Fallback)", status: "healthy", last_success: "Just now", consecutive_failures: 0, last_latency_ms: 220, error_message: null, retry_budget_remaining: 5 },
-  { source_id: "upstox-market-feed", name: "Upstox V3 Market Data", publisher: "Upstox India", priority: "P0 (Broker)", status: "healthy", last_success: "Live", consecutive_failures: 0, last_latency_ms: 42, error_message: null, retry_budget_remaining: 5 },
-];
-
-const DEMO_NEWS = [
-  {
-    id: "n-1",
-    headline: "Indian Railways expedites ₹65,000 Cr high-speed rail corridor electrification awards",
-    publisher: "Press Trust of India (PTI)",
-    timestamp: "19 Sep, 19:40 IST",
-    symbol: "LT",
-    sector: "Infrastructure",
-    sentiment: 0.82,
-    source_quality: "Tier-1 Wire (0.95)",
-    cluster_count: 6,
-    summary: "Railways fast-tracks electrification tender allocations across western corridors. Major domestic engineering contractors positioned as direct beneficiaries.",
-  },
-  {
-    id: "n-2",
-    headline: "European banking IT spend rebounds as cloud migration contracts expand in H2",
-    publisher: "The Economic Times",
-    timestamp: "19 Sep, 17:50 IST",
-    symbol: "TCS",
-    sector: "Information Technology",
-    sentiment: 0.65,
-    source_quality: "National Financial Daily (0.90)",
-    cluster_count: 4,
-    summary: "Tier-1 European lenders re-accelerate legacy mainframe modernization programs, benefiting top Indian system integrators.",
-  },
-  {
-    id: "n-3",
-    headline: "Solar PV module domestic manufacturing incentives witness robust disbursement under PLI tranche-II",
-    publisher: "Livemint",
-    timestamp: "19 Sep, 16:20 IST",
-    symbol: "RELIANCE",
-    sector: "Energy",
-    sentiment: 0.74,
-    source_quality: "National Financial Daily (0.90)",
-    cluster_count: 3,
-    summary: "Ministry of New and Renewable Energy reports commercial module fabrication scale-up ahead of FY26 targets.",
-  },
-];
-
+// Horizon string -> trading sessions (deterministic mapping, not data)
 const HORIZON_DAYS_MAP: Record<string, number> = {
   "5D": 5,
   "10D": 10,
   "20D": 20,
   "1M": 21,
-  "2M": 42,
   "3M": 63,
-  "4M": 84,
   "5M": 105,
   "6M": 126,
-  "9M": 189,
   "12M": 252,
   "1Y": 252,
 };
-
-// Dynamic corporate actions helper for frontend fallback
-const getDemoCalendar = () => {
-  const now = new Date();
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
-  const add = (days: number) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() + days);
-    return fmt(d);
-  };
-  return [
-    { id: "cal-1", symbol: "TCS", company: "Tata Consultancy Services", action_type: "DIVIDEND", purpose: "Interim Dividend - ₹10.00 & Special Dividend ₹18.00", ex_date: add(8), record_date: add(9), status: "UPCOMING", days_until: 8, timing_label: "In 8 days" },
-    { id: "cal-2", symbol: "LT", company: "Larsen & Toubro Limited", action_type: "DIVIDEND", purpose: "Interim Dividend - ₹34.00 per share (1700%)", ex_date: add(14), record_date: add(15), status: "UPCOMING", days_until: 14, timing_label: "In 14 days" },
-    { id: "cal-3", symbol: "INFY", company: "Infosys Limited", action_type: "BUYBACK", purpose: "Tender Offer Buyback up to ₹9,300 Cr at ₹2,150", ex_date: add(18), record_date: add(19), status: "UPCOMING", days_until: 18, timing_label: "In 18 days" },
-    { id: "cal-4", symbol: "RELIANCE", company: "Reliance Industries Limited", action_type: "BONUS", purpose: "1:1 Bonus Equity Share Issue", ex_date: add(26), record_date: add(27), status: "UPCOMING", days_until: 26, timing_label: "In 26 days" },
-    { id: "cal-5", symbol: "HDFCBANK", company: "HDFC Bank Limited", action_type: "DIVIDEND", purpose: "Special Interim Dividend - ₹19.50 per share", ex_date: add(32), record_date: add(33), status: "UPCOMING", days_until: 32, timing_label: "In 32 days" },
-    { id: "cal-6", symbol: "CUPID", company: "Cupid Limited", action_type: "SPLIT", purpose: "Stock Split from ₹10 to ₹1 Face Value (10-for-1)", ex_date: add(40), record_date: add(41), status: "UPCOMING", days_until: 40, timing_label: "In 40 days" },
-  ];
-};
-
-const DEMO_CALENDAR = getDemoCalendar();
-
-const DEMO_CATALYSTS = [
-  {
-    id: "cat-lt-1",
-    symbol: "LT",
-    bse_code: "500510",
-    company_name: "Larsen & Toubro Limited",
-    sector: "Capital Goods & Infra",
-    catalyst_title: "Mega ₹8,500 Cr High-Speed Rail Electrification Award",
-    catalyst_type: "MEGA ORDER WIN",
-    typical_move: "+4% to +6% on 2.5x Volume",
-    why_invest_summary: "Record ₹4.75 Lakh Cr order book provides 3.5 years revenue visibility. Mega order wins accelerate operating leverage and margin expansion.",
-    financial_scale: "Order represents ~3.8% of LTM revenue (₹2,21,000 Cr)",
-    key_metric: "PE: 34.4 | ROCE: 18.2%",
-    risk_factor: "Raw material commodity inflation, milestone payment delay",
-    last_price: "₹3,712.45",
-    change_pct: "+4.8%",
-  },
-  {
-    id: "cat-tatamotors-1",
-    symbol: "TATAMOTORS",
-    bse_code: "500570",
-    company_name: "Tata Motors Limited",
-    sector: "Automobile & EV",
-    catalyst_title: "Demerger into Pure-Play Passenger/EV and Commercial Units",
-    catalyst_type: "DEMERGER SOTP UNLOCK",
-    typical_move: "+5% to +8% on Demerger Milestones",
-    why_invest_summary: "Splitting EV/passenger from commercial vehicles eliminates holding company discount and unlocks global EV pure-play multiples.",
-    financial_scale: "SOTP value unlock estimated at 20-25% valuation premium",
-    key_metric: "PE: 11.3 | ROCE: 22.4%",
-    risk_factor: "European EV demand slowdown, supply chain commodity dependencies",
-    last_price: "₹980.00",
-    change_pct: "+6.2%",
-  },
-  {
-    id: "cat-reliance-1",
-    symbol: "RELIANCE",
-    bse_code: "500325",
-    company_name: "Reliance Industries Limited",
-    sector: "Energy & Telecom Conglomerate",
-    catalyst_title: "Solar PV Gigafactory Commissioning & Telecom ARPU Revision",
-    catalyst_type: "CAPEX & PRICING POWER",
-    typical_move: "+3% to +5% on Tariff Revisions",
-    why_invest_summary: "Commercial solar module production under PLI tranche-II. Telecom tariff hikes drop 80% to incremental EBITDA, with future Retail/Jio IPO triggers.",
-    financial_scale: "₹12,000 Cr Giga-complex; tariff hike adds ₹12,000+ Cr EBITDA",
-    key_metric: "PE: 27.6 | ROCE: 12.4%",
-    risk_factor: "Global crude refining margin volatility",
-    last_price: "₹3,021.23",
-    change_pct: "+2.2%",
-  },
-  {
-    id: "cat-cupid-1",
-    symbol: "CUPID",
-    bse_code: "530843",
-    company_name: "Cupid Limited",
-    sector: "Healthcare & Diagnostics",
-    catalyst_title: "50% Capacity Scale & Entry into Global IVD Diagnostic Kits",
-    catalyst_type: "CAPACITY EXPANSION",
-    typical_move: "+5% to +10% Upper Circuit Surges",
-    why_invest_summary: "High-growth healthcare manufacturer (24.5% ROCE, zero debt) scaling from 480M to 700M units with entry into high-margin IVD diagnostic test kits.",
-    financial_scale: "₹180 Cr capacity expansion funded organically with zero debt",
-    key_metric: "PE: 85.4 | ROCE: 24.5% | Debt/Eq: 0.00",
-    risk_factor: "Raw latex price fluctuations, international tender award cycles",
-    last_price: "₹265.00",
-    change_pct: "+7.8%",
-  },
-  {
-    id: "cat-bhartiartl-1",
-    symbol: "BHARTIARTL",
-    bse_code: "532454",
-    company_name: "Bharti Airtel Limited",
-    sector: "Telecommunications",
-    catalyst_title: "Tariff Hikes Push ARPU Past ₹220+ in Telecom Duopoly",
-    catalyst_type: "ARPU SURGE",
-    typical_move: "+4% to +6% on ARPU Outperformance",
-    why_invest_summary: "Structural pricing power in Indian telecom duopoly. Every ₹10 ARPU increase adds ₹3,000 Cr annualized operating profit with 80% FCF conversion.",
-    financial_scale: "ARPU reaches ₹228; 5G capex cycle has peaked",
-    key_metric: "PE: 42.1 | ROCE: 15.6%",
-    risk_factor: "Regulatory AGR dues re-assessment",
-    last_price: "₹1,580.00",
-    change_pct: "+3.9%",
-  },
-  {
-    id: "cat-sbin-1",
-    symbol: "SBIN",
-    bse_code: "500112",
-    company_name: "State Bank of India",
-    sector: "Public Sector Banking",
-    catalyst_title: "Decade-Low Gross NPA (<2.2%) with 15% Credit Book Growth",
-    catalyst_type: "ASSET QUALITY RE-RATING",
-    typical_move: "+4% to +6% on Earnings Beats",
-    why_invest_summary: "India's largest bank trading at 1.1x P/B with cleanest balance sheet in a decade. 18.5% ROCE and 76% provision coverage provide massive safety margin.",
-    financial_scale: "₹67,000 Cr LTM PAT; loan book exceeds ₹38 Lakh Cr",
-    key_metric: "P/B: 1.18 | PE: 10.7 | Net NPA: 0.57%",
-    risk_factor: "Systemic deposit growth moderation",
-    last_price: "₹810.00",
-    change_pct: "+3.6%",
-  },
-];
 
 export default function TerminalHome() {
   // Navigation & Workspace State (18 Workspaces)
@@ -414,13 +142,8 @@ export default function TerminalHome() {
   const [backendOnline, setBackendOnline] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState("");
 
-  // Live Indian Indices State (^NSEI, ^BSESN, ^NSEBANK, ^INDIAVIX)
-  const [indices, setIndices] = useState<any[]>([
-    { id: "nifty50", name: "NIFTY 50", val: "23,346.40", chg: "+75.80 (+0.33%)", up: true },
-    { id: "niftybank", name: "NIFTY BANK", val: "56,358.70", chg: "+302.95 (+0.54%)", up: true },
-    { id: "indiavix", name: "INDIA VIX", val: "11.38", chg: "-0.90 (-7.36%)", up: false, note: "LOW VOLATILITY REGIME" },
-    { id: "sensex", name: "BSE SENSEX", val: "74,294.96", chg: "-41.54 (-0.06%)", up: false },
-  ]);
+  // Live Indian Indices State (^NSEI, ^BSESN, ^NSEBANK, ^INDIAVIX) — populated only by the live feed
+  const [indices, setIndices] = useState<any[]>([]);
 
   // High-Impact Catalyst Opportunities (5-6%+ Daily Move Drivers)
   const [catalysts, setCatalysts] = useState<any[]>(DEMO_CATALYSTS);
@@ -501,18 +224,17 @@ export default function TerminalHome() {
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
 
-  // Dynamic Live Feeds (Breadth, News, Calendar, Compare, Models)
+  // Dynamic Live Feeds (Breadth, News, Calendar, Compare, Models) — null until the live feed responds
   const [breadth, setBreadth] = useState<any>({
-    status: "LIVE_NSE",
-    advances: 364,
-    declines: 135,
-    unchanged: 2,
-    advance_decline_ratio: 2.70,
-    market_regime: "TRENDING_UP / LOW_VOLATILITY (RISK-ON)",
+    status: null,
+    advances: null,
+    declines: null,
+    unchanged: null,
+    advance_decline_ratio: null,
+    market_regime: null,
     benchmark_index: "NIFTY 500",
-    index_last: 23346.40,
-    index_change_pct: 0.33,
-    total_market_cap_lac_cr: 480.51,
+    index_last: null,
+    index_change_pct: null,
   });
   const [news, setNews] = useState<any[]>(DEMO_NEWS);
   const [calendarActions, setCalendarActions] = useState<any[]>(DEMO_CALENDAR);
@@ -547,15 +269,17 @@ export default function TerminalHome() {
     lookahead_controls: "STRICT POINT-IN-TIME (As-of Joins)",
   });
 
-  // Explorer Data State
+  // Explorer Data State — zeros until /explorer/summary responds with real counts
   const [explorerData, setExplorerData] = useState<any>({
-    total_companies: 5182,
-    total_securities: 7420,
-    total_events: 1840,
-    total_documents: 1420,
-    total_ai_runs: 980,
-    total_alerts: 42,
+    total_companies: 0,
+    total_securities: 0,
+    total_events: 0,
+    total_documents: 0,
+    total_ai_runs: 0,
+    total_alerts: 0,
   });
+  const universeCount = Number(explorerData?.total_companies) || 0;
+  const universeLabel = universeCount > 0 ? universeCount.toLocaleString("en-IN") : "—";
 
   // Market Status State
   const [marketStatus, setMarketStatus] = useState<{ text: string; isOpen: boolean }>({
@@ -949,7 +673,7 @@ export default function TerminalHome() {
 
   const handleScanAndDispatch = async () => {
     setIsDispatchingAlerts(true);
-    setTelegramFeedback(`Scanning all 5,182+ stocks across sensitivity [${telegramSensitivity}] and dispatching alerts to Telegram...`);
+    setTelegramFeedback(`Scanning the ingested universe across sensitivity [${telegramSensitivity}] and dispatching alerts to Telegram...`);
     try {
       const res = await resilientFetch(`/alerts/scan-and-dispatch?sensitivity=${telegramSensitivity}`, { method: "POST" }, 12000);
       if (res && res.ok) {
@@ -1208,249 +932,12 @@ export default function TerminalHome() {
         throw new Error("Backend scenario engine returned error or timed out.");
       }
     } catch (err: any) {
-      console.warn("Using local calibrated scenario calculation:", err);
-      // Deterministic client-side evaluation fallback adhering strictly to whole shares rule
-      const price = sym === "RELIANCE" ? 3021.23 : sym === "LT" ? 3712.45 : sym === "TCS" ? 4250.0 : sym === "CUPID" ? 265.0 : 1640.0;
-      const wholeShares = Math.floor(cap / price);
-      const isInsufficient = wholeShares === 0;
-      const fractional = Number((cap / price).toFixed(3));
-
-      // Dynamic dispersion and drift scaling with selected horizon
-      const volScale = Math.sqrt(days / 21);
-      const driftScale = days / 21;
-      const q10Val = Number((price * Math.max(0.68, 1 - 0.052 * volScale)).toFixed(2));
-      const q25Val = Number((price * Math.max(0.78, 1 - 0.024 * volScale)).toFixed(2));
-      const q50Val = Number((price * (1 + 0.012 * driftScale)).toFixed(2));
-      const q75Val = Number((price * (1 + 0.036 * volScale + 0.012 * driftScale)).toFixed(2));
-      const q90Val = Number((price * (1 + 0.075 * volScale + 0.012 * driftScale)).toFixed(2));
-      const expectedP = Number((price * (1 + 0.015 * driftScale)).toFixed(2));
-
-      const cDrift = Number((((q50Val - price) / price) * 100).toFixed(1));
-      const tDrift = Number((((q50Val * 1.004 - price) / price) * 100).toFixed(1));
-      const cDisp = Number((((q90Val - q10Val) / price) * 100).toFixed(1));
-
-      setScenarioResult({
-        symbol: sym,
-        scenario_run_id: "sc-local-" + Date.now(),
-        inputs: { symbol: sym, capital: cap, horizon: h, horizon_days: days, target_price: tgt },
-        execution_position: {
-          executable_whole_shares: wholeShares,
-          is_insufficient_capital: isInsufficient,
-          insufficient_capital_alert: isInsufficient
-            ? `INSUFFICIENT CAPITAL FOR ONE SHARE (Share price ₹${price.toFixed(2)} exceeds available capital ₹${cap.toFixed(2)})`
-            : null,
-          current_price: price,
-          cash_remainder: Number((cap - wholeShares * price).toFixed(2)),
-          entry_notional: Number((wholeShares * price).toFixed(2)),
-          estimated_costs: Number((wholeShares * price * 0.0015).toFixed(2)),
-          theoretical_fractional_exposure: fractional,
-          is_fractional_executable: false,
-        },
-        forecast_distribution: {
-          q10: q10Val,
-          q25: q25Val,
-          q50: q50Val,
-          q75: q75Val,
-          q90: q90Val,
-          expected_price: expectedP,
-        },
-        target_probabilities: {
-          raw_p_target_touched: tgt <= price ? 0.99 : Math.max(0.15, Math.min(0.85, 0.58 + (days > 40 ? 0.12 : -0.10))),
-          calibrated_p_target_touched: tgt <= price ? 0.99 : Math.max(0.12, Math.min(0.82, 0.55 + (days > 40 ? 0.10 : -0.08))),
-          raw_p_finish_above: tgt <= price ? 0.98 : Math.max(0.10, Math.min(0.75, 0.42 + (cDrift > 0 ? 0.05 : -0.05))),
-          calibrated_p_finish_above: tgt <= price ? 0.98 : Math.max(0.08, Math.min(0.72, 0.39 + (cDrift > 0 ? 0.04 : -0.04))),
-          calibrated_p_stop_touched: Math.min(0.45, Math.max(0.08, 0.15 * volScale)),
-        },
-        downside_probabilities: {
-          p_loss_overall: Math.min(0.60, Math.max(0.25, 0.40 - (cDrift * 0.02))),
-          p_minus_5pct: Math.min(0.35, Math.max(0.05, 0.12 * volScale)),
-          p_minus_10pct: Math.min(0.20, Math.max(0.01, 0.04 * volScale)),
-          p_minus_20pct: Math.min(0.08, Math.max(0.001, 0.005 * volScale)),
-        },
-        scenarios: {
-          SEVERE_BEAR: {
-            scenario_name: "SEVERE BEAR",
-            price_range: `₹${(q10Val * 0.96).toFixed(2)} – ₹${q10Val.toFixed(2)}`,
-            implied_return_pct: `${(((q10Val * 0.96 - price) / price) * 100).toFixed(1)}% to ${(((q10Val - price) / price) * 100).toFixed(1)}%`,
-            probability_mass_pct: "10.0%",
-            scenario_portfolio_value: wholeShares > 0 ? Number((wholeShares * q10Val * 0.98).toFixed(2)) : cap,
-            scenario_pnl: wholeShares > 0 ? Number((wholeShares * (q10Val * 0.98 - price)).toFixed(2)) : 0,
-            assumptions: ["Global macro contagion triggers NIFTY correction", "Operating margin compression > 300 bps"],
-            risks: ["Sharp reduction in institutional foreign flows"],
-          },
-          BEAR: {
-            scenario_name: "BEAR",
-            price_range: `₹${q10Val.toFixed(2)} – ₹${q25Val.toFixed(2)}`,
-            implied_return_pct: `${(((q10Val - price) / price) * 100).toFixed(1)}% to ${(((q25Val - price) / price) * 100).toFixed(1)}%`,
-            probability_mass_pct: "15.0%",
-            scenario_portfolio_value: wholeShares > 0 ? Number((wholeShares * q25Val).toFixed(2)) : cap,
-            scenario_pnl: wholeShares > 0 ? Number((wholeShares * (q25Val - price)).toFixed(2)) : 0,
-            assumptions: ["Growth moderates below historical run-rate", "Valuation multiple contracts toward sector median"],
-            risks: ["Temporary delay in order execution or capex cycle"],
-          },
-          BASE: {
-            scenario_name: "BASE",
-            price_range: `₹${Number((q50Val * 0.98).toFixed(2))} – ₹${Number((q50Val * 1.03).toFixed(2))}`,
-            implied_return_pct: `${(((q50Val * 0.98 - price) / price) * 100).toFixed(1)}% to ${(((q50Val * 1.03 - price) / price) * 100).toFixed(1)}%`,
-            probability_mass_pct: "50.0%",
-            scenario_portfolio_value: wholeShares > 0 ? Number((wholeShares * q50Val).toFixed(2)) : cap,
-            scenario_pnl: wholeShares > 0 ? Number((wholeShares * (q50Val - price)).toFixed(2)) : 0,
-            assumptions: [`Revenue growth tracks historical baseline over ${days} trading sessions (~${Math.max(1, Math.round(days / 21))}M)`, "Operating margin stability"],
-            risks: ["Quarterly earnings meeting consensus without positive surprise"],
-          },
-          BULL: {
-            scenario_name: "BULL",
-            price_range: `₹${q75Val.toFixed(2)} – ₹${q90Val.toFixed(2)}`,
-            implied_return_pct: `${(((q75Val - price) / price) * 100).toFixed(1)}% to ${(((q90Val - price) / price) * 100).toFixed(1)}%`,
-            probability_mass_pct: "15.0%",
-            scenario_portfolio_value: wholeShares > 0 ? Number((wholeShares * q75Val).toFixed(2)) : cap,
-            scenario_pnl: wholeShares > 0 ? Number((wholeShares * (q75Val - price)).toFixed(2)) : 0,
-            assumptions: ["Earnings beat estimates with EBITDA margin expansion", "Institutional accumulation continues"],
-            risks: ["Profit booking at technical resistance levels"],
-          },
-          STRONG_BULL: {
-            scenario_name: "STRONG BULL",
-            price_range: `₹${q90Val.toFixed(2)} – ₹${(q90Val * 1.04).toFixed(2)}`,
-            implied_return_pct: `${(((q90Val - price) / price) * 100).toFixed(1)}% to ${(((q90Val * 1.04 - price) / price) * 100).toFixed(1)}%`,
-            probability_mass_pct: "10.0%",
-            scenario_portfolio_value: wholeShares > 0 ? Number((wholeShares * q90Val).toFixed(2)) : cap,
-            scenario_pnl: wholeShares > 0 ? Number((wholeShares * (q90Val - price)).toFixed(2)) : 0,
-            assumptions: ["Breakthrough order win or capex milestone delivery", "Significant valuation re-rating"],
-            risks: ["Extended RSI signaling overbought condition"],
-          },
-        },
-        model_metadata: {
-          ensemble_models: ["Amazon Chronos-2 Foundation Model", "HistGradientBoosting Tabular Classifier", "Historical Empirical Baseline"],
-          calibration_status: "GOOD",
-          brier_score: 0.082,
-          reliability_error_ece: 0.034,
-          sample_size: 4821,
-          test_period: "Out-of-sample chronological walk-forward",
-        },
-        comparable_events: {
-          event_type: "ORDER_WIN_AND_CAPEX",
-          historical_matches: 48,
-          median_reaction_pct: "+4.2%",
-          reaction_range: "-1.8% to +11.4%",
-        },
-        stress_tests: {
-          market_minus_5pct: "-4.2%",
-          market_minus_10pct: "-8.8%",
-          market_minus_20pct: "-17.4%",
-          high_vol_regime: "-6.1%",
-        },
-        evidence_panel: [
-          { metric: "Last Traded Price", value: `₹${price.toFixed(2)}`, type: "SOURCE-DERIVED", source: "NSE/BSE Exchange Tick" },
-          { metric: "Executable Shares", value: `${wholeShares} shares`, type: "CALCULATED", source: "Indian Whole-Share Cost Model" },
-          { metric: "Target Touch Prob", value: `${(tgt <= price ? 99 : 58.4).toFixed(1)}%`, type: "MODEL-DERIVED", source: "Calibrated HistGradientBoosting + Chronos-2" },
-          { metric: "Finish Above Prob", value: `${(tgt <= price ? 98 : 41.8).toFixed(1)}%`, type: "MODEL-DERIVED", source: "Calibrated Monte Carlo Simulation" },
-          { metric: "Scenario Narrative", value: "Operating margins intact", type: "LLM-INTERPRETED", source: "Gemini Structured Factor Synthesis" },
-        ],
-        timesfm_forecast: {
-          model_name: "google/timesfm-3.0-500m",
-          provider: "Google Research TimesFM 3.0",
-          quantiles: {
-            q10: Number((q10Val * 0.99).toFixed(2)),
-            q25: Number((q25Val * 0.995).toFixed(2)),
-            q50: Number((q50Val * 1.004).toFixed(2)),
-            q75: Number((q75Val * 1.005).toFixed(2)),
-            q90: Number((q90Val * 1.01).toFixed(2)),
-          },
-          drift_pct: tDrift,
-          bandwidth_pct: Number((cDisp * 1.04).toFixed(1)),
-          directional_bias: tDrift > 2 ? "BULLISH" : (tDrift < -2 ? "BEARISH" : "NEUTRAL"),
-          confidence_score: 0.89,
-        },
-        model_comparison: {
-          chronos_2: {
-            provider: "Amazon Research",
-            model_name: "amazon/chronos-2",
-            architecture: "Autoregressive T5-based continuous tokenization",
-            median_q50: q50Val,
-            projected_return_pct: cDrift,
-            dispersion_band_pct: cDisp,
-            q10_downside: q10Val,
-            q90_upside: q90Val,
-            bias: cDrift > 2 ? "BULLISH" : (cDrift < -2 ? "BEARISH" : "NEUTRAL"),
-          },
-          timesfm_3: {
-            provider: "Google Research",
-            model_name: "google/timesfm-3.0-500m",
-            architecture: "Patch-based zero-shot transformer (512 ctx / 128 horizon)",
-            median_q50: Number((q50Val * 1.004).toFixed(2)),
-            projected_return_pct: tDrift,
-            dispersion_band_pct: Number((cDisp * 1.04).toFixed(1)),
-            q10_downside: Number((q10Val * 0.99).toFixed(2)),
-            q90_upside: Number((q90Val * 1.01).toFixed(2)),
-            bias: tDrift > 2 ? "BULLISH" : (tDrift < -2 ? "BEARISH" : "NEUTRAL"),
-          },
-          consensus: {
-            ensemble_median: Number(((q50Val + q50Val * 1.004) / 2).toFixed(2)),
-            combined_return_pct: Number(((cDrift + tDrift) / 2).toFixed(1)),
-            model_agreement_pct: 92.0,
-            dispersion_delta: 1.4,
-          },
-        },
-        decision_council: {
-          symbol: sym,
-          consensus_verdict: "MODERATE_ACCUMULATE",
-          conviction_score: 81.5,
-          disagreement_index: 0.19,
-          votes_summary: { BULLISH: 2, APPROVED: 2 },
-          dissenting_views: [
-            "Capital Preservation Officer notes cash remainder drag on sub-optimal position sizing",
-            "SEBI LODR Auditor cautions against near-term quarterly earnings volatility window",
-          ],
-          invalidation_triggers: [
-            `Daily close below ₹${(price * 0.92).toFixed(2)} (Breaks 50-DMA structural support)`,
-            "SEBI LODR disclosure of unhedged promoter pledge increase exceeding 2.5%",
-            "Institutional net delivery volume contraction below 30-day baseline",
-          ],
-          agent_deliberations: [
-            {
-              agent_id: "agent_quant_ts",
-              name: "Alpha Forecaster",
-              role: "Quantitative & Time-Series Lead (Chronos-2 + TimesFM 3.0)",
-              vote: "BULLISH",
-              conviction_pct: 86.0,
-              key_metrics: { chronos_drift: "+3.0%", timesfm_drift: "+3.6%", rsi_14d: 54.2, consensus: "CONVERGENT_BULLISH" },
-              rationale: "Both Amazon Chronos-2 and Google TimesFM 3.0 project positive median price drift over the horizon with low quantile divergence.",
-              primary_risks: ["Volatility regime spike expanding lower quantile tail"],
-            },
-            {
-              agent_id: "agent_fundamental",
-              name: "Graham-Bachelier Analyst",
-              role: "Fundamental Valuation & ROCE Lead",
-              vote: "BULLISH",
-              conviction_pct: 82.0,
-              key_metrics: { pe_ratio: 28.5, roce_pct: "22.4%", hurdle_rate: "14.0%", margin_of_safety: "ADEQUATE" },
-              rationale: "ROCE comfortably clears cost of capital hurdle with positive operating cash flow yield.",
-              primary_risks: ["Industry margin contraction if raw input costs escalate"],
-            },
-            {
-              agent_id: "agent_lodr",
-              name: "SEBI LODR Auditor",
-              role: "Regulation 30 Regulatory & Materiality Filings Lead",
-              vote: "APPROVED",
-              conviction_pct: 88.0,
-              key_metrics: { filings_evaluated: 12, regulatory_flags: 0, promoter_pledge_pct: "0.0%" },
-              rationale: "Clean regulatory track record under SEBI LODR Regulation 30. No promoter pledge concerns.",
-              primary_risks: ["Pending disclosure regarding quarterly capex milestone updates"],
-            },
-            {
-              agent_id: "agent_risk",
-              name: "Capital Preservation Officer",
-              role: "Execution Risk & Whole-Share Sizing Lead",
-              vote: wholeShares > 0 ? "APPROVED" : "CONSTRAINED",
-              conviction_pct: wholeShares > 0 ? 84.0 : 40.0,
-              key_metrics: { executable_shares: wholeShares, friction_pct: "0.15%", tail_risk_loss: "4.7%" },
-              rationale: wholeShares > 0 ? `Executable allocation of ${wholeShares} whole shares within risk limits.` : `Insufficient capital (₹${cap}) to purchase one whole share at ₹${price.toFixed(2)}.`,
-              primary_risks: ["Gap-down market opening past stop-loss threshold"],
-            },
-          ],
-        },
-        disclaimer: "REGULATORY & MODEL NOTICE: Probabilities and quantile distributions are generated by deterministic statistical and machine learning models. Historical walk-forward calibration does not guarantee future results. Research terminal is strictly non-advisory and execution-free.",
-      });
+      console.warn("Scenario engine unavailable:", err);
+      setScenarioResult(null);
+      setScenarioError(
+        "Scenario engine unavailable: the backend could not compute a grounded forecast for this symbol. " +
+        "No simulated probabilities are displayed. Verify the backend is running and the symbol exists in the ingested universe."
+      );
     } finally {
       setScenarioLoading(false);
     }
@@ -1538,18 +1025,30 @@ export default function TerminalHome() {
     });
   };
 
-  // Screener Scan
-  const handleRunScreener = () => {
+  // Screener Scan — queries the backend screener over the ingested universe
+  const handleRunScreener = async () => {
     setScreenerRunning(true);
-    setTimeout(() => {
-      const filtered = DEMO_COMPANIES.filter((c) => {
-        const pe = parseFloat(c.pe);
-        const roce = parseFloat(c.roce);
-        return pe <= screenerFilters.max_pe && roce >= screenerFilters.min_roce;
+    try {
+      const params = new URLSearchParams({
+        max_pe: String(screenerFilters.max_pe),
+        min_roce: String(screenerFilters.min_roce),
+        min_market_cap_cr: String(screenerFilters.min_market_cap),
       });
-      setScreenerResults(filtered.length > 0 ? filtered : DEMO_COMPANIES);
+      if (screenerFilters.event_type && screenerFilters.event_type !== "ALL") {
+        params.set("event_type", screenerFilters.event_type);
+      }
+      const res = await resilientFetch(`/screener/run?${params.toString()}`, {}, 10000);
+      if (res && res.ok) {
+        const data = await res.json();
+        setScreenerResults(Array.isArray(data) ? data : data.results || data.items || []);
+      } else {
+        setScreenerResults([]);
+      }
+    } catch {
+      setScreenerResults([]);
+    } finally {
       setScreenerRunning(false);
-    }, 400);
+    }
   };
 
   return (
@@ -1626,27 +1125,28 @@ export default function TerminalHome() {
             type="text"
             placeholder="Search symbol, ISIN, company... [/]"
             value={searchTerm}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSearchTerm(val);
-              if (val.trim().length === 0) {
-                setOmnibarOpen(false);
-                setOmnibarResults([]);
-                return;
-              }
-              const q = val.trim().toUpperCase();
-              const matched = companies.filter((c: any) => {
-                if (c.symbol?.toUpperCase().includes(q)) return true;
-                if (c.name?.toUpperCase().includes(q)) return true;
-                if (c.isin?.toUpperCase().includes(q)) return true;
-                if (c.bse_code?.includes(q)) return true;
-                if (Array.isArray(c.aliases) && c.aliases.some((a: string) => a.toUpperCase().includes(q))) return true;
-                return false;
-              }).slice(0, 8);
-              setOmnibarResults(matched);
-              setOmnibarFocusIdx(0);
-              setOmnibarOpen(true);
-            }}
+  onChange={(e) => {
+  const val = e.target.value;
+  setSearchTerm(val);
+  if (val.trim().length === 0) {
+  setOmnibarOpen(false);
+  setOmnibarResults([]);
+  return;
+  }
+  // Query the backend search over the ingested universe
+  resilientFetch(`/api/search?q=${encodeURIComponent(val.trim())}`, {}, 5000)
+  .then((res) => (res && res.ok ? res.json() : null))
+  .then((data) => {
+  const hits = (data && Array.isArray(data.companies)) ? data.companies : [];
+  setOmnibarResults(hits.slice(0, 8));
+  setOmnibarFocusIdx(0);
+  setOmnibarOpen(true);
+  })
+  .catch(() => {
+  setOmnibarResults([]);
+  setOmnibarOpen(true);
+  });
+  }}
             onKeyDown={(e) => {
               if (!omnibarOpen) return;
               if (e.key === "ArrowDown") {
@@ -1752,7 +1252,7 @@ export default function TerminalHome() {
 
                   {/* LTP */}
                   <div style={{ textAlign: "right", minWidth: "70px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--green-gain)", fontFamily: "var(--font-mono)" }}>{company.price}</div>
+                    <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--green-gain)", fontFamily: "var(--font-mono)" }}>{company.price || "—"}</div>
                     <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>LTP</div>
                   </div>
 
@@ -1776,7 +1276,7 @@ export default function TerminalHome() {
 
               {/* No-result hint if search active but zero results */}
               <div style={{ padding: "6px 10px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: "16px" }}>
-                <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>BSE/NSE · 5,182 ISIN universe</span>
+                <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>BSE/NSE · {universeLabel} ISIN universe</span>
                 <span style={{ fontSize: "9px", color: "var(--text-muted)" }}>Try: AIGL · AIRTEL · RELIANCE · ZOMATO</span>
               </div>
             </div>
@@ -1809,7 +1309,7 @@ export default function TerminalHome() {
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Database size={13} color="var(--cyan-terminal)" />
             <span style={{ color: "var(--text-muted)" }}>Universe:</span>
-            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>5,182 (ISIN Deduped)</span>
+            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{universeLabel} (ISIN Deduped)</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1879,7 +1379,7 @@ export default function TerminalHome() {
 
           {[
             { id: "dashboard", label: "MARKET [1]", icon: Activity, badge: "LIVE" },
-            { id: "companies", label: "UNIVERSE [2]", icon: Building2, badge: "5.1K" },
+            { id: "companies", label: "UNIVERSE [2]", icon: Building2, badge: universeCount > 0 ? universeLabel : null },
             { id: "company", label: "COMPANY [3]", icon: FileText, badge: selectedCompany?.symbol || "LTP" },
             { id: "events", label: "EVENTS [4]", icon: Radio, badge: `${metrics.critical_events} CRIT` },
             { id: "news", label: "NEWS [5]", icon: Newspaper, badge: "RSS" },
@@ -2097,18 +1597,18 @@ export default function TerminalHome() {
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--amber-bloomberg)" }}>CURRENT MARKET REGIME:</span>
                   <span style={{ fontSize: "11px", fontWeight: 700, color: breadth.advance_decline_ratio >= 1.2 ? "var(--green-gain)" : "var(--amber-bloomberg)", backgroundColor: breadth.advance_decline_ratio >= 1.2 ? "var(--green-dim)" : "rgba(255, 176, 0, 0.15)", padding: "2px 8px", borderRadius: "2px", border: `1px solid ${breadth.advance_decline_ratio >= 1.2 ? "var(--green-gain)" : "var(--amber-bloomberg)"}` }}>
-                    {breadth.market_regime || "TRENDING_UP / LOW_VOLATILITY (RISK-ON)"}
+                    {breadth.market_regime || "AWAITING LIVE FEED"}
                   </span>
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    Evidence: {breadth.benchmark_index || "NIFTY 500"} @ {breadth.index_last ? `₹${breadth.index_last.toLocaleString()}` : "23,346.40"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "11.38"}, A/D Ratio {breadth.advance_decline_ratio?.toFixed(2) || "2.70"}x ({breadth.status || "LIVE_NSE"})
+                    Evidence: {breadth.benchmark_index || "NIFTY 500"} @ {breadth.index_last != null ? `₹${breadth.index_last.toLocaleString()}` : "—"}, India VIX at {indices.find((x: any) => x.name && x.name.includes("VIX"))?.val || "—"}, A/D Ratio {breadth.advance_decline_ratio != null ? `${breadth.advance_decline_ratio.toFixed(2)}x` : "—"} ({breadth.status || "FEED_OFFLINE"})
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "11px" }}>
-                  <span style={{ color: "var(--green-gain)", fontWeight: 700 }}>ADV: {breadth.advances?.toLocaleString() || "364"}</span>
-                  <span style={{ color: "var(--text-muted)" }}>|</span>
-                  <span style={{ color: "var(--red-loss)", fontWeight: 700 }}>DEC: {breadth.declines?.toLocaleString() || "135"}</span>
-                  <span style={{ color: "var(--text-muted)" }}>|</span>
-                  <span style={{ color: "var(--text-secondary)" }}>UNCH: {breadth.unchanged?.toLocaleString() || "2"}</span>
+<span style={{ color: "var(--green-gain)", fontWeight: 700 }}>ADV: {breadth.advances?.toLocaleString() ?? "—"}</span>
+  <span style={{ color: "var(--text-muted)" }}>|</span>
+  <span style={{ color: "var(--red-loss)", fontWeight: 700 }}>DEC: {breadth.declines?.toLocaleString() ?? "—"}</span>
+  <span style={{ color: "var(--text-muted)" }}>|</span>
+  <span style={{ color: "var(--text-secondary)" }}>UNCH: {breadth.unchanged?.toLocaleString() ?? "—"}</span>
                 </div>
               </div>
 
@@ -2156,7 +1656,7 @@ export default function TerminalHome() {
                         cursor: "pointer",
                       }}
                     >
-                      {isDispatchingAlerts ? "SCANNING UNIVERSE..." : "📡 SCAN ALL 5,182+ FOR CATALYSTS"}
+                      {isDispatchingAlerts ? "SCANNING UNIVERSE..." : "📡 SCAN UNIVERSE FOR CATALYSTS"}
                     </button>
                     <button
                       onClick={() => setActiveTab("screener")}
@@ -2441,7 +1941,7 @@ export default function TerminalHome() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <h2 style={{ fontSize: "14px", color: "var(--amber-bloomberg)" }}>
-                    DYNAMIC NSE+BSE LISTED UNIVERSE (5,182+ ISSUERS DEDUPED BY ISIN)
+                    DYNAMIC NSE+BSE LISTED UNIVERSE ({universeLabel} ISSUERS DEDUPED BY ISIN)
                   </h2>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                     Canonical entity resolution maps NSE symbols and BSE security codes to unique ISIN master identities.
@@ -2746,7 +2246,7 @@ export default function TerminalHome() {
                     MULTI-FACTOR QUANTITATIVE SCREENER
                   </h2>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                    Filter across 5,182 companies using valuation, ROCE, RSI oscillators, and material event criteria.
+                    Filter across {universeLabel} ingested companies using valuation, ROCE, RSI oscillators, and material event criteria.
                   </p>
                 </div>
                 <button
@@ -3944,7 +3444,7 @@ export default function TerminalHome() {
               </div>
 
               {(() => {
-                const calList = (calendarActions && calendarActions.length > 0 ? calendarActions : getDemoCalendar()).filter((c: any) => {
+                const calList = (calendarActions || []).filter((c: any) => {
                   const q = calendarSearch.trim().toLowerCase();
                   const matchSearch = !q ||
                     (c.symbol && c.symbol.toLowerCase().includes(q)) ||
@@ -4556,7 +4056,7 @@ export default function TerminalHome() {
                     </h2>
                   </div>
                   <p style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Connected to <b>@y_market_alert_bot</b> (Destination Chat ID: <code style={{ color: "var(--cyan-terminal)" }}>8358109190</code>). Scans all 5,182+ listed equities across NSE/BSE.
+                    Connected to <b>@y_market_alert_bot</b> (Destination Chat ID: <code style={{ color: "var(--cyan-terminal)" }}>8358109190</code>). Scans all {universeLabel} ingested listed equities across NSE/BSE.
                   </p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -4590,7 +4090,7 @@ export default function TerminalHome() {
                       cursor: isDispatchingAlerts ? "not-allowed" : "pointer",
                     }}
                   >
-                    {isDispatchingAlerts ? "SCANNING UNIVERSE..." : "📡 SCAN 5,182+ & DISPATCH ALERTS"}
+                    {isDispatchingAlerts ? "SCANNING UNIVERSE..." : "📡 SCAN UNIVERSE & DISPATCH ALERTS"}
                   </button>
                 </div>
               </div>
@@ -4619,7 +4119,7 @@ export default function TerminalHome() {
                     </div>
                     <div style={{ backgroundColor: "var(--bg-card)", padding: "8px 10px", borderRadius: "3px" }}>
                       <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>UNIVERSE MONITORING</span>
-                      <div style={{ fontWeight: 700, color: "var(--green-gain)", marginTop: "2px" }}>5,182 Listed Equities (NSE/BSE)</div>
+                      <div style={{ fontWeight: 700, color: "var(--green-gain)", marginTop: "2px" }}>{universeLabel} Listed Equities (NSE/BSE)</div>
                     </div>
                     <div style={{ backgroundColor: "var(--bg-card)", padding: "8px 10px", borderRadius: "3px" }}>
                       <span style={{ color: "var(--text-muted)", fontSize: "10px" }}>DEDUPLICATION ENGINE</span>

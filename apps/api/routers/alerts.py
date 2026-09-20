@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,21 +21,7 @@ from packages.ai.agents import alert_formatter_agent
 router = APIRouter(prefix="/alerts", tags=["Telegram & Event Alerts"])
 
 # In-memory alert dispatch audit log for fast zero-latency inspection
-_DISPATCH_LOG: List[Dict[str, Any]] = [
-    {
-        "id": "alt-init-1",
-        "symbol": "LT",
-        "company_name": "Larsen & Toubro Limited",
-        "importance": "CRITICAL",
-        "headline": "L&T Construction bags Mega order worth ₹8,500 Cr for high-speed rail electrification",
-        "amount": "₹8,500 Cr",
-        "channel": "telegram",
-        "delivery_status": "SENT",
-        "sent_at": "Today, 14:15 IST",
-        "telegram_chat_id": settings.TELEGRAM_CHAT_ID or "8358109190",
-        "telegram_message_id": "5",
-    }
-]
+_DISPATCH_LOG: List[Dict[str, Any]] = []
 
 
 class AlertDispatchResponse(BaseModel):
@@ -81,7 +67,7 @@ async def send_test_telegram():
         "• *System Status*: ACTIVE & MONITORED\n"
         f"• *Timestamp*: {now_str}\n"
         f"• *Destination Chat*: `{chat_id}`\n"
-        "• *Universe Coverage*: 5,182 Listed Equities (NSE/BSE)\n"
+        "• *Universe Coverage*: Ingested NSE/BSE filings only (no synthetic alerts)\n"
         "• *Sensitivity*: ALL SIGNALS (High, Med, Low, Small Potential)\n\n"
         "_Deduplicated factual intelligence feed active._"
     )
@@ -124,111 +110,49 @@ async def scan_universe_and_dispatch(
     """Scans the entire stock universe, detects events across all materiality tiers, and sends them to Telegram."""
     chat_id = settings.TELEGRAM_CHAT_ID or "8358109190"
 
-    # Master events spanning small, medium, and high potential across multiple companies
-    master_disclosures = [
-        {
-            "symbol": "LT",
-            "company_name": "Larsen & Toubro Limited",
-            "importance": "CRITICAL",
-            "event_type": "ORDER_WIN",
-            "headline": "L&T bags ₹8,500 Cr Mega High-Speed Rail Electrification Award",
-            "amount": "₹8,500 Cr",
-            "scale": "3.8% of Annual Revenue (₹2,21,000 Cr)",
-            "why_flagged": ["Contract value exceeds ₹5,000 Cr critical threshold", "Extends rail order book visibility to 36 months"],
-            "unknowns": ["Milestone payment certification intervals"],
-        },
-        {
-            "symbol": "TATAMOTORS",
-            "company_name": "Tata Motors Limited",
-            "importance": "CRITICAL",
-            "event_type": "DEMERGER",
-            "headline": "Tata Motors Board approves demerger into commercial and passenger EV units",
-            "amount": "SOTP Unlock",
-            "scale": "Unlocking conglomerate discount across independent pure-play entities",
-            "why_flagged": ["Pure-play EV multiple re-rating", "Elimination of automotive debt drag"],
-            "unknowns": ["Record date for entitlement shares"],
-        },
-        {
-            "symbol": "CUPID",
-            "company_name": "Cupid Limited",
-            "importance": "HIGH",
-            "event_type": "CAPACITY_EXPANSION",
-            "headline": "Cupid completes 50% capacity expansion; bags global diagnostic supply tender",
-            "amount": "₹180 Cr",
-            "scale": "Capacity increases from 480M to 700M units with zero debt",
-            "why_flagged": ["Entry into high-margin IVD diagnostic test kits", "Operating margin exceeds 40%"],
-            "unknowns": ["Export delivery lead time for Latin American tenders"],
-        },
-        {
-            "symbol": "BHARTIARTL",
-            "company_name": "Bharti Airtel Limited",
-            "importance": "HIGH",
-            "event_type": "ARPU_HIKE",
-            "headline": "Airtel reports average revenue per user (ARPU) surge to ₹228 post-tariff revision",
-            "amount": "ARPU ₹228",
-            "scale": "Adds ~₹3,000 Cr annualized operating profit with 80% FCF conversion",
-            "why_flagged": ["Structural pricing power in Indian telecom duopoly", "5G capex cycle peaked"],
-            "unknowns": ["Subscriber churn in 2G legacy segments"],
-        },
-        {
-            "symbol": "TCS",
-            "company_name": "Tata Consultancy Services Limited",
-            "importance": "MEDIUM",
-            "event_type": "DIVIDEND",
-            "headline": "TCS declares ₹77.00 per share dividend; Q3 net profit climbs 8.2% YoY",
-            "amount": "₹77.00 / share",
-            "scale": "Total dividend payout exceeds ₹28,000 Cr; EBIT margin 26.2%",
-            "why_flagged": ["Beat street consensus on operating margin", "Deal TCV of $8.1B in BFSI"],
-            "unknowns": ["European IT discretionary budget recovery speed"],
-        },
-        {
-            "symbol": "SBIN",
-            "company_name": "State Bank of India",
-            "importance": "MEDIUM",
-            "event_type": "ASSET_QUALITY",
-            "headline": "SBI Gross NPA drops to 2.18% (10-year low) with 15.2% credit growth",
-            "amount": "₹67,000 Cr PAT",
-            "scale": "Net NPA at 0.57% with 76% provision coverage ratio",
-            "why_flagged": ["Cleanest balance sheet in a decade", "Trading at 1.1x P/B"],
-            "unknowns": ["Deposit cost pressure over the next 2 quarters"],
-        },
-    ]
-
-    # Filter by user sensitivity
+    # Scan the ingested event stream — only real, persisted disclosures are dispatched.
+    total_companies = (await db.execute(select(func.count(Company.id)))).scalar() or 0
+    query = (
+        select(Event)
+        .options(selectinload(Event.company).selectinload(Company.securities))
+        .order_by(Event.announcement_time.desc().nullslast())
+        .limit(50)
+    )
     if sensitivity == "CRITICAL_ONLY":
-        selected = [d for d in master_disclosures if d["importance"] == "CRITICAL"]
+        query = query.where(Event.importance == "CRITICAL")
     elif sensitivity == "MEDIUM_PLUS":
-        selected = [d for d in master_disclosures if d["importance"] in ("CRITICAL", "HIGH", "MEDIUM")]
-    else:  # "ALL" captures everything including small potential
-        selected = master_disclosures
+        query = query.where(Event.importance.in_(("CRITICAL", "HIGH", "MEDIUM")))
+    events = (await db.execute(query)).scalars().all()
 
     dispatched_count = 0
     dispatched_details = []
-
-    for item in selected:
+    for e in events:
+        secs = list(e.company.securities) if e.company else []
+        symbol = next((s.symbol for s in secs if s.exchange == "NSE"), secs[0].symbol if secs else "N/A")
+        company_name = e.company.legal_name if e.company else symbol
+        headline = e.headline or e.event_type
+        announced = e.announcement_time.strftime("%d-%b-%Y %H:%M UTC") if e.announcement_time else "unknown"
         msg = (
-            f"🚨 *[{item['importance']}] {item['symbol']} — {item['event_type']}*\n"
-            f"*{item['company_name']}*\n\n"
-            f"• *Headline*: {item['headline']}\n"
-            f"• *Scale*: {item['scale']}\n"
-            f"• *Why Flagged*: {item['why_flagged'][0]}\n"
-            f"• *Unknowns*: {item['unknowns'][0]}\n\n"
-            f"_Strictly factual intelligence. Non-advisory._"
+            f"\U0001F6A8 *[{e.importance}] {symbol} — {e.event_type}*\n"
+            f"*{company_name}*\n\n"
+            f"• *Headline*: {headline}\n"
+            f"• *Announced*: {announced}\n\n"
+            f"_Strictly factual intelligence from ingested filings. Non-advisory._"
         )
         try:
             sent = await telegram_notifier.send_direct_message(msg)
             status_str = "SENT" if sent else "SKIPPED_OFFLINE"
         except Exception:
-            status_str = "SIMULATED_DELIVERY"
+            status_str = "FAILED"
 
         dispatched_count += 1
         log_item = {
-            "id": f"alt-{item['symbol'].lower()}-{int(datetime.now().timestamp())}",
-            "symbol": item["symbol"],
-            "company_name": item["company_name"],
-            "importance": item["importance"],
-            "headline": item["headline"],
-            "amount": item["amount"],
+            "id": f"alt-{symbol.lower()}-{int(datetime.now().timestamp())}-{dispatched_count}",
+            "symbol": symbol,
+            "company_name": company_name,
+            "importance": e.importance,
+            "headline": headline,
+            "amount": "N/A",
             "channel": "telegram",
             "delivery_status": status_str,
             "sent_at": "Just now",
@@ -240,9 +164,12 @@ async def scan_universe_and_dispatch(
 
     return AlertDispatchResponse(
         status="COMPLETED",
-        message=f"Universe scan completed across 5,182 companies. Dispatched {dispatched_count} alerts across all potential levels to Telegram.",
+        message=(
+            f"Scanned {total_companies} ingested companies and {len(events)} recent ingested events. "
+            f"Dispatched {dispatched_count} alerts to Telegram."
+        ),
         alerts_dispatched=dispatched_count,
-        scanned_companies=5182,
+        scanned_companies=total_companies,
         details=dispatched_details,
     )
 

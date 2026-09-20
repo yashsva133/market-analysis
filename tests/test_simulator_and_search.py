@@ -13,16 +13,48 @@ from apps.api.routers.simulator import (
 
 @pytest.mark.asyncio
 async def test_global_search_matching():
+    """Search queries the ingested database; matched companies and events are returned."""
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock
+    from packages.common.models import Company, Event, Security
+
+    lt_company = Company(id=uuid.uuid4(), isin="INE018A01030", legal_name="Larsen & Toubro Limited", sector="Capital Goods")
+    lt_company.securities = [Security(company_id=lt_company.id, exchange="NSE", symbol="LT", is_active=True)]
+    order_event = Event(
+        id=uuid.uuid4(), company_id=lt_company.id, event_type="ORDER_WIN", importance="HIGH",
+        headline="L&T wins major EPC order worth Rs 4,500 Crore",
+        announcement_time=None, status="EXTRACTED",
+    )
+    order_event.company = lt_company
+
+    mock_db = AsyncMock()
+
+    async def mock_execute(query):
+        res = MagicMock()
+        q_str = str(query).lower()
+        if "events" in q_str:
+            res.scalars.return_value.all.return_value = [order_event]
+        elif "companies" in q_str and "group by" not in q_str:
+            res.scalars.return_value.all.return_value = [lt_company]
+        elif "group by" in q_str:
+            res.all.return_value = [("Capital Goods", 1)]
+        else:
+            res.scalars.return_value.all.return_value = []
+            res.all.return_value = []
+        return res
+
+    mock_db.execute = AsyncMock(side_effect=mock_execute)
+
     # Search for company
-    res_comp = await search_all(q="Larsen")
+    res_comp = await search_all(q="Larsen", db=mock_db)
     assert res_comp["status"] == "ok"
-    assert len(res_comp["results"]["companies"]) > 0
-    assert res_comp["results"]["companies"][0]["symbol"] == "LT"
+    assert len(res_comp["companies"]) > 0
+    assert res_comp["companies"][0]["symbol"] == "LT"
 
     # Search for event type
-    res_evt = await search_all(q="Order")
+    res_evt = await search_all(q="Order", db=mock_db)
     assert res_evt["status"] == "ok"
-    assert len(res_evt["results"]["events"]) > 0
+    assert len(res_evt["events"]) > 0
 
 
 @pytest.mark.asyncio

@@ -7,14 +7,12 @@ from packages.market_data.forecasting import ForecastingEngine
 
 @pytest.mark.asyncio
 async def test_macro_indicators_grounded():
+    """No macro feed is ingested, so the endpoint reports zero indicators instead of fabricated values."""
     res = await get_macro_indicators()
     assert res["status"] == "ok"
-    assert res["count"] >= 5
-    # Verify core Indian indicators exist
-    indicator_names = [i["name"] for i in res["indicators"]]
-    assert any("RBI Policy Repo" in n for n in indicator_names)
-    assert any("CPI" in n for n in indicator_names)
-    assert any("USD / INR" in n for n in indicator_names)
+    assert res["count"] == 0
+    assert res["indicators"] == []
+    assert "not fabricated" in res["note"] or "No macroeconomic data feed" in res["note"]
 
 
 def test_forecasting_engine_holt_winters():

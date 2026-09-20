@@ -19,26 +19,20 @@ class ModelRegistry:
         self._init_system_models()
 
     def _init_system_models(self):
-        """Seed certified production models."""
-        now = datetime.now(timezone.utc).isoformat()
-
+        """Seed model specifications. No evaluation has been run in this
+        deployment, so every model registers as EXPERIMENTAL with empty
+        metrics — fabricated out-of-sample scores are never served."""
         # 1. Primary Chronos-2 Adapter
         self.register_model(
             model_id="amazon-chronos-2",
             model_name="Chronos-2 Probabilistic Foundation Model",
             version="2.0.0",
             family="TIME_SERIES_FOUNDATION",
-            status="ACTIVE",
+            status="EXPERIMENTAL",
             feature_set_version="2.0.0",
-            metrics={
-                "mae": 14.8,
-                "coverage_80pct": 0.82,
-                "brier_score": 0.162,
-                "calibration_rating": "GOOD",
-                "prediction_count": 4820,
-            },
-            gating_passed=True,
-            notes="Primary local zero-shot probabilistic foundation model for quantile forecast distributions.",
+            metrics={},
+            gating_passed=False,
+            notes="Primary local zero-shot probabilistic foundation model for quantile forecast distributions. Awaiting persisted out-of-sample evaluation.",
         )
 
         # 2. Tabular Probability Classifier
@@ -47,17 +41,11 @@ class ModelRegistry:
             model_name="HistGradientBoosting Tabular Target Estimator",
             version="2.1.0",
             family="TABULAR_GRADIENT_BOOSTING",
-            status="ACTIVE",
+            status="EXPERIMENTAL",
             feature_set_version="2.0.0",
-            metrics={
-                "roc_auc": 0.74,
-                "log_loss": 0.46,
-                "brier_score": 0.174,
-                "calibration_rating": "GOOD",
-                "prediction_count": 3250,
-            },
-            gating_passed=True,
-            notes="Lightweight tabular ML classifier estimating target-touch and finish-above probabilities.",
+            metrics={},
+            gating_passed=False,
+            notes="Lightweight tabular ML classifier estimating target-touch and finish-above probabilities. Awaiting persisted out-of-sample evaluation.",
         )
 
         # 3. Forecast Ensemble
@@ -66,16 +54,11 @@ class ModelRegistry:
             model_name="Multi-Model Forecast Ensemble",
             version="2.1.0",
             family="HYBRID_ENSEMBLE",
-            status="ACTIVE",
+            status="EXPERIMENTAL",
             feature_set_version="2.0.0",
-            metrics={
-                "brier_score": 0.158,
-                "ece": 0.048,
-                "calibration_rating": "GOOD",
-                "prediction_count": 8070,
-            },
-            gating_passed=True,
-            notes="Combines Chronos foundation model, tabular probability engine, and volatility baselines.",
+            metrics={},
+            gating_passed=False,
+            notes="Combines Chronos foundation model, tabular probability engine, and volatility baselines. Awaiting persisted out-of-sample evaluation.",
         )
 
         # 4. Google TimesFM 3.0 Adapter
@@ -84,17 +67,11 @@ class ModelRegistry:
             model_name="TimesFM 3.0 500M Patch Forecaster",
             version="3.0.0",
             family="PATCH_TRANSFORMER_FOUNDATION",
-            status="ACTIVE",
+            status="EXPERIMENTAL",
             feature_set_version="2.0.0",
-            metrics={
-                "mae": 13.95,
-                "coverage_80pct": 0.841,
-                "brier_score": 0.078,
-                "calibration_rating": "EXCELLENT",
-                "prediction_count": 3600,
-            },
-            gating_passed=True,
-            notes="500M parameter patch transformer with zero-shot transfer evaluated across Indian equity markets.",
+            metrics={},
+            gating_passed=False,
+            notes="500M parameter patch transformer with zero-shot transfer. Awaiting persisted out-of-sample evaluation.",
         )
 
     def register_model(

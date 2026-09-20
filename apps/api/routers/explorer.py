@@ -38,33 +38,19 @@ router = APIRouter(prefix="/explorer", tags=["Data Explorer"])
 
 @router.get("/summary")
 async def get_explorer_summary(db: AsyncSession = Depends(get_db)):
-    """Returns row counts and freshness across all core tables with resilient standalone fallback."""
-    try:
-        return {
-            "companies": (await db.execute(select(func.count(Company.id)))).scalar() or 0,
-            "securities": (await db.execute(select(func.count(Security.id)))).scalar() or 0,
-            "events": (await db.execute(select(func.count(Event.id)))).scalar() or 0,
-            "documents": (await db.execute(select(func.count(Document.id)))).scalar() or 0,
-            "document_pages": (await db.execute(select(func.count(DocumentPage.id)))).scalar() or 0,
-            "financial_snapshots": (await db.execute(select(func.count(FinancialSnapshot.id)))).scalar() or 0,
-            "market_quotes": (await db.execute(select(func.count(MarketQuote.id)))).scalar() or 0,
-            "ai_runs": (await db.execute(select(func.count(AIRun.id)))).scalar() or 0,
-            "alerts": (await db.execute(select(func.count(AlertRecord.id)))).scalar() or 0,
-            "universe_changes": (await db.execute(select(func.count(UniverseChangeEvent.id)))).scalar() or 0,
-        }
-    except Exception:
-        return {
-            "companies": 5182,
-            "securities": 7420,
-            "events": 1840,
-            "documents": 1420,
-            "document_pages": 4890,
-            "financial_snapshots": 5182,
-            "market_quotes": 5182,
-            "ai_runs": 980,
-            "alerts": 42,
-            "universe_changes": 12,
-        }
+    """Returns row counts and freshness across all core tables. Database failures surface as 503."""
+    return {
+        "companies": (await db.execute(select(func.count(Company.id)))).scalar() or 0,
+        "securities": (await db.execute(select(func.count(Security.id)))).scalar() or 0,
+        "events": (await db.execute(select(func.count(Event.id)))).scalar() or 0,
+        "documents": (await db.execute(select(func.count(Document.id)))).scalar() or 0,
+        "document_pages": (await db.execute(select(func.count(DocumentPage.id)))).scalar() or 0,
+        "financial_snapshots": (await db.execute(select(func.count(FinancialSnapshot.id)))).scalar() or 0,
+        "market_quotes": (await db.execute(select(func.count(MarketQuote.id)))).scalar() or 0,
+        "ai_runs": (await db.execute(select(func.count(AIRun.id)))).scalar() or 0,
+        "alerts": (await db.execute(select(func.count(AlertRecord.id)))).scalar() or 0,
+        "universe_changes": (await db.execute(select(func.count(UniverseChangeEvent.id)))).scalar() or 0,
+    }
 
 
 @router.get("/documents")

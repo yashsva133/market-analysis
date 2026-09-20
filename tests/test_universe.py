@@ -125,15 +125,16 @@ async def test_symbol_change_detection():
     async def mock_execute(query):
         res = MagicMock()
         q_str = str(query)
+        if "pg_advisory_xact_lock" in q_str:
+            return res
         if "companies" in q_str:
-            res.scalar_one_or_none.return_value = existing_company
-        elif "securities.symbol =" in q_str:
-            # Querying for new symbol: not found yet
-            res.scalar_one_or_none.return_value = None
-        elif "securities.company_id =" in q_str:
-            # Previous security on exchange
-            res.scalar_one_or_none.return_value = existing_security
+            # Bulk company load: existing ISIN identity is returned
+            res.scalars.return_value.all.return_value = [existing_company]
+        elif "securities" in q_str:
+            # Bulk security load: previous symbol listing is returned
+            res.scalars.return_value.all.return_value = [existing_security]
         else:
+            res.scalars.return_value.all.return_value = []
             res.scalar_one_or_none.return_value = None
         return res
 
