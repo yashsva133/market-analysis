@@ -195,41 +195,15 @@ async def get_quote_by_symbol(symbol: str):
     except Exception:
         pass
 
-    # Grounded benchmark catalog
-    benchmarks = {
-        "BHARTIARTL": 1893.30,
-        "ASAHIINDIA": 685.40,
-        "AIGL": 685.40,
-        "RELIANCE": 3021.23,
-        "TCS": 4250.00,
-        "LT": 3712.45,
-        "INFY": 1885.00,
-        "HDFCBANK": 1640.00,
-        "ICICIBANK": 1220.00,
-        "SBIN": 810.00,
-        "TATAMOTORS": 980.00,
-        "ITC": 490.00,
-        "HINDUNILVR": 2720.00,
-        "BAJFINANCE": 7150.00,
-        "ZOMATO": 280.40,
-        "JIOFIN": 342.10,
-        "TRENT": 7380.00,
-        "SUZLON": 78.50,
-        "CUPID": 265.00,
-        "NIFTYBEES": 266.50,
-    }
-    px = benchmarks.get(sym, 750.0)
-    return {
-        "symbol": sym,
-        "exchange": "NSE",
-        "last_price": px,
-        "change_pct": 1.25,
-        "day_high": round(px * 1.015, 2),
-        "day_low": round(px * 0.985, 2),
-        "volume": 2450000,
-        "source": "BENCHMARK_GROUNDED",
-        "as_of": now_iso,
-    }
+    # No live source succeeded. Report the failure explicitly instead of
+    # substituting a hardcoded price.
+    raise HTTPException(
+        status_code=502,
+        detail=(
+            f"No live quote available for {sym}. Configure Upstox credentials or verify "
+            "outbound connectivity to the public feed; no substitute price is served."
+        ),
+    )
 
 
 from pydantic import BaseModel

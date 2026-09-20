@@ -7,14 +7,12 @@ from packages.market_data.forecasting import ForecastingEngine
 
 @pytest.mark.asyncio
 async def test_macro_indicators_grounded():
+    """No macro feed is ingested, so the endpoint reports zero indicators instead of fabricated values."""
     res = await get_macro_indicators()
     assert res["status"] == "ok"
-    assert res["count"] >= 5
-    # Verify core Indian indicators exist
-    indicator_names = [i["name"] for i in res["indicators"]]
-    assert any("RBI Policy Repo" in n for n in indicator_names)
-    assert any("CPI" in n for n in indicator_names)
-    assert any("USD / INR" in n for n in indicator_names)
+    assert res["count"] == 0
+    assert res["indicators"] == []
+    assert "not fabricated" in res["note"] or "No macroeconomic data feed" in res["note"]
 
 
 def test_forecasting_engine_holt_winters():
@@ -33,19 +31,44 @@ def test_forecasting_engine_holt_winters():
         assert p.lower_bound_95 <= p.lower_bound_80
 
 
+def test_forecasting_engine_refuses_short_series():
+    """A short series cannot support an honest projection; the engine must refuse."""
+    with pytest.raises(ValueError):
+        ForecastingEngine.forecast(symbol="TEST", prices=[100.0, 101.0, 99.5], horizon=5)
+
+
 @pytest.mark.asyncio
-async def test_lab_event_study_backtest():
+async def test_lab_event_study_backtest_reports_empty_honestly():
+    """With no ingested events, the backtest returns an empty log — never a fabricated one."""
+    from unittest.mock import AsyncMock, MagicMock
+
     req = BacktestRequest(
         strategy_type="EVENT_STUDY_ORDER_WIN",
         holding_period_days=10,
         slippage_pct=0.05,
         fee_pct=0.10,
     )
-    res = await run_backtest(req)
-    assert res["status"] == "ok"
-    assert res["total_events_tested"] > 0
-    assert "sharpe_ratio" in res
-    assert "sortino_ratio" in res
-    assert "max_drawdown_pct" in res
-    assert len(res["trade_log"]) > 0
-    assert "disclaimer" in res
+    mock_db = AsyncMock()
+    res = MagicMock()
+    res.scalars.return_value.all.return_value = []
+    mock_db.execute = AsyncMock(return_value=res)
+
+    out = await run_backtest(req, db=mock_db)
+    assert out["status"] == "ok"
+    assert out["total_events_tested"] == 0
+    assert out["trade_log"] == []
+    assert "no synthetic trade log" in out["note"]
+    assert out["sharpe_ratio"] is None
+
+
+@pytest.mark.asyncio
+async def test_lab_rsi_backtest_requires_symbols():
+    """Rule backtests run over specified securities; no default symbol list is invented."""
+    from unittest.mock import AsyncMock
+    from fastapi import HTTPException
+
+    req = BacktestRequest(strategy_type="RSI_OVERSOLD_REBOUND", symbols=[])
+    mock_db = AsyncMock()
+    with pytest.raises(HTTPException) as exc_info:
+        await run_backtest(req, db=mock_db)
+    assert exc_info.value.status_code == 400

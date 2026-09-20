@@ -50,28 +50,11 @@ class ForecastingEngine:
     ) -> ForecastResult:
         """Compute trend and level forecast with prediction intervals."""
         if not prices or len(prices) < 15:
-            # Generate baseline projection if series is short
-            base = prices[-1] if prices else 100.0
-            points = [
-                ForecastPoint(
-                    step=i,
-                    projected_price=round(base, 2),
-                    lower_bound_80=round(base * 0.96, 2),
-                    upper_bound_80=round(base * 1.04, 2),
-                    lower_bound_95=round(base * 0.93, 2),
-                    upper_bound_95=round(base * 1.07, 2),
-                )
-                for i in range(1, horizon + 1)
-            ]
-            return ForecastResult(
-                symbol=symbol,
-                model_name="Holt-Winters Double Exponential (Lightweight CPU)",
-                forecast_horizon=horizon,
-                last_known_price=round(base, 2),
-                points=points,
-                in_sample_mape_pct=2.5,
-                residual_std_dev=round(base * 0.02, 2),
-                conditioning_window_bars=len(prices),
+            # A short series cannot support an honest projection; refuse
+            # rather than fabricating a flat baseline with invented accuracy.
+            raise ValueError(
+                "ForecastingEngine requires at least 15 real price observations; "
+                "no synthetic baseline projection is generated."
             )
 
         n = len(prices)

@@ -6,11 +6,19 @@ Allows virtual testing of portfolio allocation and event-driven ideas without re
 - Real-time P&L tracking against prevailing market quotes
 - Position history and drawdown tracking
 Strictly labeled: PAPER / SIMULATION ONLY. Zero brokerage order execution.
+Execution prices come from the live market data provider; when no quote is
+available the trade is rejected rather than filled at a made-up price.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from packages.common.database import get_db
+from packages.common.models import Security
+from packages.market_data.manager import market_data_manager
 
 router = APIRouter(prefix="/api/simulator", tags=["simulator"])
 
@@ -35,32 +43,51 @@ class SimulatorState:
         self.trades: List[Dict[str, Any]] = []
         self.peak_equity = self.INITIAL_CASH
 
-    def get_market_price(self, symbol: str) -> float:
-        # Grounded reference prices for liquid symbols
-        price_map = {
-            "LT": 3620.00,
-            "RELIANCE": 2925.00,
-            "TCS": 4090.00,
-            "INFY": 1880.00,
-            "NIFTYBEES": 266.50,
-            "CUPID": 265.00,
-            "HDFCBANK": 1640.00,
-            "TATAMOTORS": 980.00,
-        }
-        return price_map.get(symbol.upper(), 500.00)
-
 
 _sim = SimulatorState()
 
 
+async def resolve_ltp(db: AsyncSession, symbol: str) -> Optional[float]:
+    """Resolve the last traded price from the live market data provider.
+
+    Returns None when the symbol is unknown or no live quote is available —
+    never a substituted price.
+    """
+    sym = symbol.strip().upper()
+    res = await db.execute(
+        select(Security).where(Security.symbol == sym, Security.exchange == "NSE")
+    )
+    sec = res.scalar_one_or_none()
+    if not sec:
+        res = await db.execute(select(Security).where(Security.symbol == sym))
+        sec = res.scalar_one_or_none()
+    if not sec:
+        return None
+    try:
+        quote = await market_data_manager.get_quote(sec)
+    except Exception:
+        return None
+    if quote and quote.get("last_price", 0) > 0:
+        return float(quote["last_price"])
+    return None
+
+
 @router.get("/account")
-async def get_simulator_account():
+async def get_simulator_account(db: AsyncSession = Depends(get_db)):
     """Retrieve virtual cash, portfolio valuation, unrealized P&L, and drawdown."""
     holdings_val = 0.0
     unrealized_pnl = 0.0
+    stale_symbols: List[str] = []
 
     for sym, pos in _sim.positions.items():
-        ltp = _sim.get_market_price(sym)
+        ltp = await resolve_ltp(db, sym)
+        if ltp is None:
+            # No live quote: value the position at cost basis and flag it,
+            # rather than inventing a market price.
+            stale_symbols.append(sym)
+            val = pos["avg_price"] * pos["quantity"]
+            holdings_val += val
+            continue
         val = ltp * pos["quantity"]
         holdings_val += val
         pnl = (ltp - pos["avg_price"]) * pos["quantity"]
@@ -89,18 +116,36 @@ async def get_simulator_account():
         "max_drawdown_pct": drawdown_pct,
         "positions_count": len(_sim.positions),
         "trades_count": len(_sim.trades),
+        "stale_valuation_symbols": stale_symbols,
+        "valuation_note": (
+            "Positions without a live quote are valued at cost basis and listed in "
+            "stale_valuation_symbols; no substitute market price is used."
+        ) if stale_symbols else None,
         "disclaimer": "SIMULATION ENVIRONMENT ONLY. NO REAL MONEY OR BROKERAGE ORDERS INVOLVED.",
     }
 
 
 @router.get("/positions")
-async def get_simulator_positions():
+async def get_simulator_positions(db: AsyncSession = Depends(get_db)):
     """Retrieve all simulated open holdings."""
     items = []
     for sym, pos in _sim.positions.items():
-        ltp = _sim.get_market_price(sym)
-        val = round(ltp * pos["quantity"], 2)
+        ltp = await resolve_ltp(db, sym)
         inv = round(pos["avg_price"] * pos["quantity"], 2)
+        if ltp is None:
+            items.append({
+                "symbol": sym,
+                "quantity": pos["quantity"],
+                "avg_price": round(pos["avg_price"], 2),
+                "current_price": None,
+                "invested_value": inv,
+                "current_value": inv,
+                "unrealized_pnl": 0.0,
+                "unrealized_pnl_pct": 0.0,
+                "price_available": False,
+            })
+            continue
+        val = round(ltp * pos["quantity"], 2)
         pnl = round(val - inv, 2)
         pnl_pct = round((pnl / inv) * 100, 2) if inv > 0 else 0.0
         items.append({
@@ -112,19 +157,35 @@ async def get_simulator_positions():
             "current_value": val,
             "unrealized_pnl": pnl,
             "unrealized_pnl_pct": pnl_pct,
+            "price_available": True,
         })
     return {"status": "ok", "positions": items}
 
 
 @router.post("/trade")
-async def execute_simulated_trade(trade: SimulatedTradeRequest):
+async def execute_simulated_trade(trade: SimulatedTradeRequest, db: AsyncSession = Depends(get_db)):
     """Execute simulated virtual BUY or SELL trade with slippage & fee estimation."""
     sym = trade.symbol.upper()
     act = trade.action.upper()
     if act not in ("BUY", "SELL"):
         raise HTTPException(status_code=400, detail="Action must be BUY or SELL")
 
-    base_price = trade.price if trade.price and trade.price > 0 else _sim.get_market_price(sym)
+    if trade.price and trade.price > 0:
+        base_price = trade.price
+        price_source = "USER_OVERRIDE"
+    else:
+        base_price = await resolve_ltp(db, sym)
+        price_source = "LIVE_QUOTE"
+        if base_price is None:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"No live quote available for {sym}; the paper simulator does not fill "
+                    "orders at substituted prices. Provide an explicit 'price' or retry when "
+                    "the market data feed is reachable."
+                ),
+            )
+
     # Apply slippage: buy pays slightly more, sell gets slightly less
     slip_mult = 1.0 + (trade.slippage_pct / 100.0) if act == "BUY" else 1.0 - (trade.slippage_pct / 100.0)
     exec_price = round(base_price * slip_mult, 2)
@@ -170,6 +231,7 @@ async def execute_simulated_trade(trade: SimulatedTradeRequest):
         "action": act,
         "quantity": trade.quantity,
         "price": exec_price,
+        "price_source": price_source,
         "trade_value": trade_value,
         "estimated_fees": estimated_fees,
     }

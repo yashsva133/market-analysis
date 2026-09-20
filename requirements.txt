@@ -23,6 +23,12 @@ pymupdf>=1.24.10
 # Configuration & YAML
 pyyaml>=6.0.2
 
+# Numerical engines and public market data
+numpy>=2.1.0
+pandas>=2.2.3
+scikit-learn>=1.5.2
+yfinance>=0.2.54
+
 # Testing
 pytest>=8.3.0
 pytest-asyncio>=0.24.0

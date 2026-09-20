@@ -195,54 +195,6 @@ async def get_live_news(limit: int = Query(default=25, ge=5, le=60)):
     if _NEWS_CACHE["data"]:
         return _NEWS_CACHE["data"][:limit]
 
-    # Baseline live-formatted news
-    return [
-        {
-            "id": "news-base-1",
-            "headline": "Indian Railways expedites ₹65,000 Cr high-speed rail corridor electrification awards",
-            "publisher": "Press Trust of India (PTI)",
-            "timestamp": "Today, 15:30 IST",
-            "symbol": "LT",
-            "sector": "Infrastructure & Capital Goods",
-            "sentiment": 0.82,
-            "source_quality": "Tier-1 Wire (0.95)",
-            "cluster_count": 6,
-            "summary": "Railways fast-tracks electrification tender allocations across western corridors. Major domestic engineering contractors positioned as direct beneficiaries.",
-        },
-        {
-            "id": "news-base-2",
-            "headline": "Tata Motors Board advances Demerger roadmap for passenger EV and commercial vehicle units",
-            "publisher": "The Economic Times",
-            "timestamp": "Today, 14:15 IST",
-            "symbol": "TATAMOTORS",
-            "sector": "Automobile & EV",
-            "sentiment": 0.78,
-            "source_quality": "Tier-1 Financial Daily",
-            "cluster_count": 5,
-            "summary": "Demerger timeline enters regulatory review stage to unlock conglomerate discount across pure-play entities.",
-        },
-        {
-            "id": "news-base-3",
-            "headline": "Telecom ARPU hits ₹228 following industry-wide tariff adjustments with strong cash generation",
-            "publisher": "Livemint",
-            "timestamp": "Today, 12:40 IST",
-            "symbol": "BHARTIARTL",
-            "sector": "Telecommunications",
-            "sentiment": 0.74,
-            "source_quality": "Tier-1 Financial Daily",
-            "cluster_count": 4,
-            "summary": "Operating cash flow surges as 5G capex cycle completes across primary domestic telecom operators.",
-        },
-        {
-            "id": "news-base-4",
-            "headline": "State Bank of India Gross NPA reaches decade-low 2.18% with healthy loan disbursement",
-            "publisher": "Business Standard",
-            "timestamp": "Today, 11:20 IST",
-            "symbol": "SBIN",
-            "sector": "Public Sector Banking",
-            "sentiment": 0.80,
-            "source_quality": "Tier-1 Financial Daily",
-            "cluster_count": 7,
-            "summary": "Asset quality re-rating continues for India's largest lender with provision coverage exceeding 76%.",
-        },
-    ]
+    # No live feed and no cache: report the gap honestly instead of serving
+    # fabricated baseline articles.
+    return []
